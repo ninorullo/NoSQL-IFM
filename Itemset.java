@@ -1,5 +1,5 @@
 /**
- * @author Antonino Rullo, Domenico Sacc‡, University of Calabria, 2018.
+ * @author Antonino Rullo, Domenico Sacc√†, University of Calabria, 2018.
  * @author Edoardo Serra, Boise State University, 2018
  * @copyright GNU General Public License v3
  * No reproduction in whole or part without maintaining this copyright notice
@@ -13,14 +13,12 @@ import java.util.*;
 
 public class Itemset
 {
-//	private final int[] itemset;
 	private final int support;
 	private final TIntHashSet setOfItems = new TIntHashSet();
 	private final int id;
 	
 	public Itemset(final int[] itmst, final int sup, final int id)
 	{
-//		itemset = itmst;
 		support = sup;
 		this.id = id;
 		
@@ -37,11 +35,6 @@ public class Itemset
 	{
 		return setOfItems;
 	}
-	
-//	public int[] getItemset()
-//	{
-//		return itemset;
-//	}
 	
 	public int getSupport()
 	{

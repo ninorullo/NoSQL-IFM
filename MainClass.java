@@ -1,5 +1,5 @@
 /**
- * @author Antonino Rullo, Domenico Sacc‡, University of Calabria, 2018.
+ * @author Antonino Rullo, Domenico Sacc√†, University of Calabria, 2018.
  * @author Edoardo Serra, Boise State University, 2018
  * @copyright GNU General Public License v3
  * No reproduction in whole or part without maintaining this copyright notice
@@ -290,57 +290,7 @@ public class MainClass
 		
 		return frontier;
 	}
-	
-	
-//	private static List<Constraint> computeIC(final Set<Set<Integer>> frontier, final Table table, final double s)
-//	{
-//		final List<Constraint> infrequencyConstraints = new ArrayList<Constraint>();
-//		int icIndex = 0;
-//		
-//		final Set<Integer> domainStarsAttribute = new HashSet<Integer>(table.domainStarsAttribute());
-//		final Set<Integer> domainStatesAttribute = new HashSet<Integer>(table.domainStatesAttribute());
-//		final Set<Integer> domainCategoriesAttribute = new HashSet<Integer>(table.domainCategoriesAttribute());
-//			
-//		for(final Set<Integer> minimalInfrequentItemset : frontier)
-//		{		
-//			final Map<String,Integer> vincoliStarsAtt = new HashMap<String,Integer>();
-//			final Map<String,Integer> vincoliStatesAtt = new HashMap<String,Integer>();
-//			final Map<String,Set<Integer>> vincoliReviewersAtt = new HashMap<String,Set<Integer>>();
-//			final Map<String,Set<Integer>> vincoliCategoriesAtt = new HashMap<String,Set<Integer>>();
-//			
-//			final Set<Integer> reviewers = new HashSet<Integer>();
-//			final Set<Integer> categories = new HashSet<Integer>();
-//			
-//			for(final int i : minimalInfrequentItemset)
-//			{
-//				if(domainStarsAttribute.contains(i))
-//					vincoliStarsAtt.put(table.getStarsAttribute().getName(), i);
-//				else
-//					if(domainStatesAttribute.contains(i))
-//						vincoliStatesAtt.put(table.getStatesAttribute().getName(), i);
-//					else 
-//						if(domainCategoriesAttribute.contains(i))
-//							categories.add(i);
-//						else
-//							reviewers.add(i);
-//			}
-//
-//			if(categories.size() > 0)
-//				vincoliCategoriesAtt.put(table.getCategoriesAttribute().getName(), categories);
-//			
-//			if(reviewers.size() > 0)
-//				vincoliReviewersAtt.put(table.getReviewersAttribute().getName(), reviewers);
-//			
-////			final int upperBound = (int)(((int)(s*table.getSize())) - 1 - 0.04 * table.getSize());
-//			final int upperBound = (int)(((int)(s*table.getSize())) - 1);
-//			
-//			infrequencyConstraints.add(new Constraint("ic"+icIndex, upperBound, 0, vincoliStarsAtt, vincoliStatesAtt, vincoliCategoriesAtt, vincoliReviewersAtt));
-//			icIndex++;
-//		}
-//		
-//		return infrequencyConstraints;
-//	}
-	
+
 	
 	private static List<Constraint> computeIC(final Set<TIntHashSet> frontier, final Table table, final double s)
 	{
@@ -405,7 +355,10 @@ public class MainClass
 	{
 		final String[] parameters = {"new_" + table.getName() + "_" + support, support+""};
 		
+		System.out.println("running APRIORI on the new table ...");
 		final Apriori apriori = new Apriori(parameters);
+		System.out.println("done");
+		
 		final List<Itemset> newFrequentItemsets = apriori.getItemsets();
 		
 		int counter = 0;
@@ -489,27 +442,38 @@ public class MainClass
 		
 		return support;
 	}
+	
+	
+	private static double computeMinimum(final double[] thresholds)
+	{
+		double minimum = Double.MAX_VALUE;
+		
+		for(int i=0; i<thresholds.length; i++)
+			minimum = Math.min(minimum, thresholds[i]);
+		
+		return minimum;
+	}
+
 
 
 	public static void main(String[] args) throws Exception
-	{		
-//		Test test = new Test(25000, 8);
-//		Table table = test.getTable();
-//		Test.transactionalTable(table);
-		
+	{				
 		os = new FileOutputStream(output);
 		ps = new PrintStream(os);
 		
 		final Table table = buildTable(args);
 		
-//		System.out.println("\nrunning APRIORI...");
-		
 		ps.print("TABLE ROWS: " + table.getSize() + "\n");
 		
-		final List<Itemset> frequentItemsets = computeFrequentItemsets(0.1, args[0]);
-
-//		final double[] thresholds = {0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1};
-		final double[] thresholds = {0.1,0.1,0.1,0.1};
+		/**
+		* edit the following line by modifiyng the threshold values you want to perform the IFM with
+		*/
+		final double[] thresholds = {0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1};
+		
+		final double threshold = computeMinimum(thresholds);
+		
+		System.out.println("\nrunning APRIORI...");
+		final List<Itemset> frequentItemsets = computeFrequentItemsets(threshold, args[0]);
 		
 		for(int i=0; i<thresholds.length; i++)
 		{			

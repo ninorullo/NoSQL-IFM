@@ -347,7 +347,9 @@ public class MainClass
 	}
 
 	public static void main(String[] args) throws Exception
-	{		
+	{	
+		final long solverStart = System.currentTimeMillis();
+		
 		final Table table = buildTable(args);
 		final String tableName = args[0];
 		final double threshold = Double.parseDouble(args[1]);
@@ -373,14 +375,13 @@ public class MainClass
 //					System.out.println(c.toString());
 			
 			System.out.println("computing table ...");
-			final long solverStart = System.currentTimeMillis();
+			
 			final Solver solver = new Solver(table, frequencyConstraints, infrequencyConstraints, scale_factor);
 			solver.runProgram();
 			final long solverEnd = System.currentTimeMillis();
 			
-			System.out.println("done in " + (solverEnd-solverStart) + " ms");
-			
 			solver.buildNewTable(threshold, args);
+			System.out.println("done in " + (solverEnd-solverStart) + " ms");
 		}
 	}
 

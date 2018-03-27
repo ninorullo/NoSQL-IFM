@@ -23,28 +23,31 @@ public class Solver
 	private final List<Constraint> infrequencyConstraints;
 	private IloCplex cplex;
 	private IloCplex cplexILP;
-	private Map<String,Constraint> fcConstraints = new HashMap<String,Constraint>();
-	private Map<String,Constraint> icConstraints = new HashMap<String,Constraint>();
-	private Map<String,IloRange> constraints6 = new HashMap<String,IloRange>();//frequency constraints
-	private Map<String,IloRange> constraints7 = new HashMap<String,IloRange>();//frequency constraints
-	private Map<String,IloRange> constraints8 = new HashMap<String,IloRange>();//infrequency constraints
-	private Map<String,IloRange> sizeConstraints = new HashMap<String,IloRange>();
-	private Map<String,Map<Integer,IloIntVar>> variables = new HashMap<String,Map<Integer,IloIntVar>>();//key: column name, value: mapping value-->CPLEX variable
-	private Map<IloNumVar,List<Integer>> transactions = new HashMap<IloNumVar,List<Integer>>();//key: x; value: itemsets => index=0 --> SV attribute, index>0 --> MV attribute
+	private final Map<String,Constraint> fcConstraints = new HashMap<String,Constraint>();
+	private final Map<String,Constraint> icConstraints = new HashMap<String,Constraint>();
+	private final Map<String,IloRange> constraints6 = new HashMap<String,IloRange>();//frequency constraints
+	private final Map<String,IloRange> constraints7 = new HashMap<String,IloRange>();//frequency constraints
+	private final Map<String,IloRange> constraints8 = new HashMap<String,IloRange>();//infrequency constraints
+	private final Map<String,IloRange> sizeConstraints = new HashMap<String,IloRange>();
+	private final Map<String,Map<Integer,IloIntVar>> variables = new HashMap<String,Map<Integer,IloIntVar>>();//key: column name, value: mapping value-->CPLEX variable
+	private final Map<IloNumVar,List<Integer>> transactions = new HashMap<IloNumVar,List<Integer>>();//key: x; value: itemsets => index=0 --> SV attribute, index>0 --> MV attribute
 	private Set<List<IloIntVar>> lastTransactionsVars = new HashSet<List<IloIntVar>>();
 	private Map<Integer,List<Integer>> lastTransactions;
 	private int xIndex = 0;
 	private IloLinearNumExpr constraintOnConstraints;
+	private final double scale_factor;
 	
 	public Solver(
 			final Table table,
 			final List<Constraint> frequencyConstraints, 
-			final List<Constraint> infrequencyConstraints
-		     )
+			final List<Constraint> infrequencyConstraints,
+			final double sf
+		      )
 	{
 		this.table = table;
 		this.frequencyConstraints = frequencyConstraints;
 		this.infrequencyConstraints = infrequencyConstraints;
+		scale_factor = sf;
 		
 		for(final Column<Integer> svColumn : table.get_SV_attributes())
 			variables.put(svColumn.getName(), new HashMap<Integer,IloIntVar>());
@@ -274,8 +277,8 @@ public class Solver
 	/**
 	 * example: 
 	 * 
-	 * attribute         SV1   |    SV2   |   MV1  |    MV2
-	 * domain          {1,2,3} |  {4,5,6} | {7,8,9}| {10,11,12}
+	 * attribute        SV1   |   SV2   |    MV1   |     MV2
+	 * domain         {1,2,3} | {4,5,6} |  {7,8,9} | {10,11,12}
 	 *  
 	 * frequency constraint fc1: [SV1=1, SV2=4, MV1>={7,8}, MV2>={10,11}]
 	 * 
@@ -298,19 +301,19 @@ public class Solver
 	 *            r3-->12
 	 *            
 	 * constraint on constraints:	fc1 >= 0.00001
-	 * constraint on STARS:  	sr1 + sr2 + sr3 = 1
-	 * constraint on STATES: 	st1 + st2 + st3 = 1
-	 * constaint on CATS: 		ct1 + ct2 + ct3 >= 1
-	 * constraint on REVS: 		r1 + r2 + r3 >= 1
+	 * constraint on SV1:  	sr1 + sr2 + sr3 = 1
+	 * constraint on SV2: 	st1 + st2 + st3 = 1
+	 * constaint on MV1: 	ct1 + ct2 + ct3 >= 1
+	 * constraint on MV2: 	r1 + r2 + r3 >= 1
 	 * 
 	 * ILP constraint for fc1:
-	 * 				sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
-	 * 				sr1 - c1 >= 0
-	 * 				st1 - c1 >= 0
-	 * 				ct1 - c1 >= 0
-	 * 				ct2 - c1 >= 0
-	 * 				r1 - c1 >= 0
-	 * 				r2 - c1 >= 0
+	 * 			sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
+	 * 			sr1 - c1 >= 0
+	 * 			st1 - c1 >= 0
+	 * 			ct1 - c1 >= 0
+	 * 			ct2 - c1 >= 0
+	 * 			r1 - c1 >= 0
+	 * 			r2 - c1 >= 0
 	 */
 	private void buildILP()
 	{
@@ -328,7 +331,7 @@ public class Solver
 			mappingConstraints(frequencyConstraints);
 			mappingConstraints(infrequencyConstraints);
 			
-			cplexILP.addGe(constraintOnConstraints, 0.00001).setName("CoC");
+			cplexILP.addGe(constraintOnConstraints, 0.00001);
 		}
 		catch (IloException e)
 		{
@@ -475,11 +478,11 @@ public class Solver
 					}
 			}
 			
-			final IloRange c10 = cplex.addGe(numExpr10, table.getSize());
+			final IloRange c10 = cplex.addGe(numExpr10, table.getSize()*scale_factor);
 			c10.setName("C10");
 			sizeConstraints.put("C10", c10);//C10
 			
-			final IloRange c11 = cplex.addLe(numExpr11, table.getSize());
+			final IloRange c11 = cplex.addLe(numExpr11, table.getSize()*scale_factor);
 			c11.setName("C11");
 			sizeConstraints.put("C11", c11);//C11
 		} 
@@ -575,7 +578,7 @@ public class Solver
 					
 					if(duplicates > 0.0)
 					{
-						System.out.println(x.getName() + " " + transactions.get(x).toString() + "\t\t\t--\t" + duplicates);
+						System.out.println(transactions.get(x).toString() + "\t\t\t--\t" + duplicates);
 						rows += duplicates;
 					}
 				}
@@ -588,7 +591,6 @@ public class Solver
 			e.printStackTrace();
 		}
 	}
-	
 	
 	private double runILP(
 				final Map<String,IloRange> c6, 
@@ -711,5 +713,4 @@ public class Solver
 			e.printStackTrace();
 		}
 	}	
-
 }

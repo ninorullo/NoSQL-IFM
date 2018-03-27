@@ -1,5 +1,5 @@
 /**
- * @author Antonino Rullo, Domenico Sacc‡, University of Calabria, 2018.
+ * @author Antonino Rullo, Domenico Sacc√†, University of Calabria, 2018.
  * @author Edoardo Serra, Boise State University, 2018
  * @copyright GNU General Public License v3
  * No reproduction in whole or part without maintaining this copyright notice
@@ -37,10 +37,10 @@ public class Solver
 	private IloLinearNumExpr constraintOnConstraints;
 	
 	public Solver(
-					final Table table,
-					final List<Constraint> frequencyConstraints, 
-					final List<Constraint> infrequencyConstraints
-				  )
+			final Table table,
+			final List<Constraint> frequencyConstraints, 
+			final List<Constraint> infrequencyConstraints
+		     )
 	{
 		this.table = table;
 		this.frequencyConstraints = frequencyConstraints;
@@ -199,7 +199,6 @@ public class Solver
 	
 	/**
 	 * maps each frequency and infrequency constraint to a CPLEX variable and adds ILP constraints
-	 * @param constraints
 	 */
 	private void mappingConstraints(final List<Constraint> constraints)
 	{
@@ -275,10 +274,10 @@ public class Solver
 	/**
 	 * example: 
 	 * 
-	 * attribute     STARS (SV)  | STATES (SV) |   CATS (MV)  |    REVS (MV)
-	 * domain          {1,2,3}   |   {4,5,6}   |    {7,8,9}   |   {10,11,12}
+	 * attribute         SV1   |    SV2   |   MV1  |    MV2
+	 * domain          {1,2,3} |  {4,5,6} | {7,8,9}| {10,11,12}
 	 *  
-	 * frequency constraint fc1: [STARS=1, STATES=4, CATS>={7,8}, REVS>={10,11}]
+	 * frequency constraint fc1: [SV1=1, SV2=4, MV1>={7,8}, MV2>={10,11}]
 	 * 
 	 * variables: c1-->fc1
 	 * 
@@ -305,13 +304,13 @@ public class Solver
 	 * constraint on REVS: 		r1 + r2 + r3 >= 1
 	 * 
 	 * ILP constraint for fc1:
-	 * 							sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
-	 * 							sr1 - c1 >= 0
-	 * 							st1 - c1 >= 0
-	 * 							ct1 - c1 >= 0
-	 * 							ct2 - c1 >= 0
-	 * 							r1 - c1 >= 0
-	 * 							r2 - c1 >= 0
+	 * 				sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
+	 * 				sr1 - c1 >= 0
+	 * 				st1 - c1 >= 0
+	 * 				ct1 - c1 >= 0
+	 * 				ct2 - c1 >= 0
+	 * 				r1 - c1 >= 0
+	 * 				r2 - c1 >= 0
 	 */
 	private void buildILP()
 	{
@@ -591,76 +590,16 @@ public class Solver
 	}
 	
 	
-//	private List<Constraint> DCsImpliedBy(final List<Integer> itemset)
-//	{
-//		final List<Constraint> toReturn = new ArrayList<Constraint>();
-//		
-//		for(final Constraint dc : duplicateConstraints)
-//		{
-//			final Map<String,Integer> vincoliSV = dc.getVincoliSV();
-//			final Map<String,Set<Integer>> vincoliMV = dc.getVincoliMV();
-//			
-//			boolean s = false; //true if SV attribute value satisfies the current constraint
-//			
-//			if(vincoliSV.size() > 0)
-//			{						
-//				if((vincoliSV.values().contains(itemset.get(0))))
-//					s = true;
-//			}
-//			else
-//				s = true;
-//			
-//			boolean m = false; //true if MV attribute value satisfies the current constraint
-//			
-//			if(vincoliMV.size() > 0)
-//			{
-//				final Map<String,String> operators = dc.getOperators();
-//				final String operator = operators.get(dc.getName());
-//				final Set<Integer> constraintSet = vincoliMV.get("");//aggiungere il nome della colonna MV
-//				
-//				if(operator.equals("equals"))
-//				{
-//					if(
-//						constraintSet.size() == itemset.size() &&
-//						constraintSet.containsAll(itemset)
-//					  )
-//						m = true;
-//				}
-//				else 
-//					if(operator.equals("contains"))
-//					{
-//						if(itemset.containsAll(constraintSet))
-//							m = true;
-//					}
-//					else
-//					{
-//						System.out.println("syntax error: operator \"" + operator + "\" not defined!");
-//						System.exit(0);
-//					}
-//			}
-//			else
-//				m = true;
-//			
-//			if(s && m)
-//				toReturn.add(dc);
-//		}
-//		
-//		return toReturn;
-//	}
-
-
-	
 	private double runILP(
-							final Map<String,IloRange> c6, 
-							final Map<String,IloRange> c7, 
-							final Map<String,IloRange> c8, 
-							final Set<List<IloIntVar>> transactionsVars,
-							final Set<String> nonSatisfiedConstraints
-						 )
+				final Map<String,IloRange> c6, 
+				final Map<String,IloRange> c7, 
+				final Map<String,IloRange> c8, 
+				final Set<List<IloIntVar>> transactionsVars,
+				final Set<String> nonSatisfiedConstraints
+			     )
 	{
 		try
 		{
-//			final IloLinearNumExpr objective = (IloLinearNumExpr) cplexILP.getObjective().getExpr();
 			final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
 			
 			if(c6!=null && c7!=null && c8!=null)

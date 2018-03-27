@@ -30,7 +30,7 @@ The input table must be stored in a text file having space-separated integer val
 At the end you can re-convert the output table according to your mapping.
  
 Example:
-Suppose to have a no-SQL table with the following attributes: 'NAME', 'AGE', 'HOBBIES', where 'NAME' and 'AGE' are single value attributes, and 'HOBBIES' is a multi value attribute (i.e. values are list of items). 
+Suppose you have a no-SQL table with the following attributes: 'NAME', 'AGE', 'HOBBIES', where 'NAME' and 'AGE' are single value attributes, and 'HOBBIES' is a multi value attribute (i.e. values are list of items). 
 The table has 1000 tuples and it is stored in a file named 'MyNoSqlTable.txt' which looks as follows:
 
 1; 5; 9 10 24;
@@ -38,6 +38,6 @@ The table has 1000 tuples and it is stored in a file named 'MyNoSqlTable.txt' wh
 2; 4; 9 22 41 15 17;
 ....
 
-If I want to produce an output table of 2500 tuples, I have to use the following program arguments: 
+If you want to produce an output table of 2500 tuples, you have to use the following program arguments: 
 
                            MyNoSqlTable.txt 2.5 NAME sv AGE sv HOBBIES mv

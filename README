@@ -1,1 +1,11 @@
+This code allows to perform Itemset Frequent Mining on No-SQL tables with multivalue attributes.
+If you are going to use this code, please cite the following article "", where further information
+on the implemented algorithm can be found. 
+
+To run this code you first need to import IBM CPLEX1251 and Trove 3.1a1 (or later versions) libraries.
+Both libraries are freely available at:
+
+ - (CPLEX) https://www.ibm.com/developerworks/community/blogs/jfp/entry/CPLEX_Is_Free_For_Students?lang=en
+ - (Trove) https://sourceforge.net/projects/trove4j/files/trove/3.0.3/
+
 

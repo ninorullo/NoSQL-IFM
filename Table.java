@@ -1,5 +1,5 @@
 /**
- * @author Antonino Rullo, Domenico Sacc‡, University of Calabria, 2018.
+ * @author Antonino Rullo, Domenico Sacc√†, University of Calabria, 2018.
  * @author Edoardo Serra, Boise State University, 2018
  * @copyright GNU General Public License v3
  * No reproduction in whole or part without maintaining this copyright notice
@@ -36,11 +36,6 @@ public class Table
 		{
 			columns[i-1] = args[i];
 		}
-	}
-	
-	public String[] getColumns()
-	{
-		return columns;
 	}
 	
 	public List<Column<Integer>> get_SV_attributes()
@@ -155,7 +150,7 @@ public class Table
 					for(final Column<TIntHashSet> mvColumn : multiValueAttributes)
 						if(mvColumn.getName().equals(columnName))
 						{
-							toReturn += mvColumn.getValue(index) + "; ";
+							toReturn += mvColumn.getValue(index).toString().replace("{","").replace("}", "").replace(",", " ") + "; ";
 							break;
 						}
 					
@@ -167,6 +162,4 @@ public class Table
 		
 		return toReturn;
 	}
-	
-	
 }

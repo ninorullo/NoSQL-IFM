@@ -40,4 +40,4 @@ The table has 1000 tuples and it is stored in a file named 'MyNoSqlTable.txt' wh
 
 If I want to produce an output table of 2500 tuples, I have to use the following program arguments: 
 
-                                  MyNoSqlTable.txt 2.5 NAME sv AGE sv HOBBIES mv
+                           MyNoSqlTable.txt 2.5 NAME sv AGE sv HOBBIES mv

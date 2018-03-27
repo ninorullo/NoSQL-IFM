@@ -24,8 +24,8 @@ where:
  - OUTPUT_TABLE_SIZE: is a double value meaning the size of the output table expressed as a percentage of the size of the input table;
  - [ATTRIBUTE_NAME (sv|mv)]: is the list of the attributes names, each followed by 'sv' (if single value) or 'mv' (if multi value), in the same order in which they appear in the input table.
                              
-The input table must have space-separated integer values only, the end of each column must be denoted by the ';' character, and each tuple must be stored in a line. If your table contains non-integer values, you have to convert it such that each non-integer value
-is mapped to an integer value. At the end you can re-convert the output table according to your mapping.
+The input table must have space-separated integer values only, the end of each column must be denoted by the ';' character, and each tuple must be stored in a line. If your table contains non-integer values, you have to convert it such that each non-integer value is mapped to an integer value.
+At the end you can re-convert the output table according to your mapping.
  
 Example:
 Suppose to have a no-SQL table with the following attributes: 'NAME', 'AGE', 'HOBBIES', where 'NAME' and 'AGE' are single value attributes, and 'HOBBIES' is a multi value attribute (i.e. values are list of items). 

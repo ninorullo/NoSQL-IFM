@@ -20,7 +20,7 @@ QUICK START:
 
 Run MainClass.java with the following arguments: 
 
-                               'INPUT_TABLE_FILE_NAME' 'OUTPUT_TABLE_SIZE' '[ATTRIBUTE_NAME (sv|mv)]'
+                      'INPUT_TABLE_FILE_NAME' 'OUTPUT_TABLE_SIZE' '[ATTRIBUTE_NAME (sv|mv)]'
 where:
  - INPUT_TABLE_FILE_NAME: is the name of the input table file;
  - OUTPUT_TABLE_SIZE: is a double value meaning the size of the output table expressed as a percentage of the size of the input table;

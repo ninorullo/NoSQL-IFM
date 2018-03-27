@@ -13,12 +13,7 @@ import java.io.*;
 import java.util.*;
 
 public class MainClass
-{	
-	final static File output = new File("output");
-	static FileOutputStream os;
-	static PrintStream ps;
-	
-	
+{		
 	private static Table buildTable(final String[] args)
 	{		
 		final Map<Integer,Column<Integer>> sv_columns = new TreeMap<Integer,Column<Integer>>();
@@ -26,7 +21,7 @@ public class MainClass
 		
 		int cIndex = 0;
 		
-		for(int i=1; i<args.length-1; i++)
+		for(int i=3; i<args.length-1; i++)
 		{
 			final String columnName = args[i];
 			i++;
@@ -122,7 +117,7 @@ public class MainClass
 	}
 	
 
-	private static List<Constraint> computeFC(final List<Itemset> frequentItemsets, final Table table, final double s)
+	private static List<Constraint> computeFC(final List<Itemset> frequentItemsets, final Table table, final double threshold, final double scale_factor)
 	{
 		final List<Constraint> frequencyConstraints = new ArrayList<Constraint>();
 		int fcIndex = 0;
@@ -131,7 +126,7 @@ public class MainClass
 		{
 			final double support = (double)itemset.getSupport()/(double)table.getSize();
 			
-			if(support >= s)
+			if(support >= threshold)
 			{
 				final Map<String,Integer> singleValueAttributeConstraint = new HashMap<String,Integer>();
 				final Map<String,TIntHashSet> multiValueAttributeConstraint = new HashMap<String,TIntHashSet>();
@@ -174,7 +169,9 @@ public class MainClass
 							}
 				}
 			
-				frequencyConstraints.add(new Constraint("fc"+fcIndex, (int)(itemset.getSupport()), (int)(itemset.getSupport()), singleValueAttributeConstraint, multiValueAttributeConstraint));
+				final int bound = (int)((int)(itemset.getSupport())*scale_factor);
+				
+				frequencyConstraints.add(new Constraint("fc"+fcIndex, bound, bound, singleValueAttributeConstraint, multiValueAttributeConstraint));
 				fcIndex++;
 			}
 		}
@@ -291,8 +288,7 @@ public class MainClass
 		return frontier;
 	}
 
-	
-	private static List<Constraint> computeIC(final Set<TIntHashSet> frontier, final Table table, final double s)
+	private static List<Constraint> computeIC(final Set<TIntHashSet> frontier, final Table table, final double threshold, final double scale_factor)
 	{
 		final List<Constraint> infrequencyConstraints = new ArrayList<Constraint>();
 		int icIndex = 0;
@@ -338,154 +334,36 @@ public class MainClass
 						}
 			}
 			
-			int upperBound = (int)(((int)(s*table.getSize())) - 1);
+			int upperBound = (int)(((int)(threshold*table.getSize())) - 1);
 			
 			if(upperBound < 0)
 				upperBound = 0;
 			
-			infrequencyConstraints.add(new Constraint("ic"+icIndex, upperBound, 0, singleValueAttributeConstraint, multiValueAttributeConstraint));
+			infrequencyConstraints.add(new Constraint("ic"+icIndex, (int)(upperBound*scale_factor), 0, singleValueAttributeConstraint, multiValueAttributeConstraint));
 			icIndex++;
 		}
 		
 		return infrequencyConstraints;
 	}
 
-
-	private static double compare(final List<Itemset> frequentItemsets, final double support, final Table table, final Table newTable) throws Exception
-	{
-		final String[] parameters = {"new_" + table.getName() + "_" + support, support+""};
-		
-		System.out.println("running APRIORI on the new table ...");
-		final Apriori apriori = new Apriori(parameters);
-		System.out.println("done");
-		
-		final List<Itemset> newFrequentItemsets = apriori.getItemsets();
-		
-		int counter = 0;
-		double sum = 0;
-		
-		for(final Itemset i : frequentItemsets)
-		{
-			int support_D = i.getSupport();
-			int support_Dp;
-			
-			if((double)support_D/(double)table.getSize() >= support)
-			{
-				boolean inCommon = false;
-
-				for(final Itemset j : newFrequentItemsets)
-					if(i.getSetOfItems().equals(j.getSetOfItems()))
-					{	
-						support_Dp = j.getSupport();
-						
-						int min = Math.min(support_D, support_Dp);
-						int max = Math.max(support_D, support_Dp);
-						
-						sum += (double)min/(double)max;
-						inCommon = true;
-						counter++;
-						
-						newFrequentItemsets.remove(newFrequentItemsets.indexOf(j));
-						
-						break;
-					}
-				
-				if(!inCommon)
-				{
-					support_Dp = computeSupport(i.getSetOfItems(), newTable);
-					
-					int min = Math.min(support_D, support_Dp);
-					int max = Math.max(support_D, support_Dp);
-					
-					sum += (double)min/(double)max;
-					counter++;
-				}
-			}
-		}
-		
-		for(final Itemset i : newFrequentItemsets)
-		{
-			int support_D = computeSupport(i.getSetOfItems(), table);
-			int support_Dp = i.getSupport();
-			
-			int min = Math.min(support_D, support_Dp);
-			int max = Math.max(support_D, support_Dp);
-			
-			sum += (double)min/(double)max;
-			counter++;
-		}
-
-		final double accuracy = 1.0/counter * sum;
-		
-		return accuracy;
-	}
-	
-	
-	private static int computeSupport(final TIntHashSet setOfItems, final Table table)
-	{
-		int support = 0;
-		TIntHashSet transaction;
-		
-		for(int i=0; i<table.getSize(); i++)
-		{
-			transaction = new TIntHashSet();
-			
-			for(final Column<Integer> svColumn : table.get_SV_attributes())
-				transaction.add(svColumn.getValue(i));
-			
-			for(final Column<TIntHashSet> mvColumn : table.get_MV_attributes())
-				transaction.addAll(mvColumn.getValue(i));
-			
-			if(transaction.containsAll(setOfItems))
-				support++;
-		}
-		
-		return support;
-	}
-	
-	
-	private static double computeMinimum(final double[] thresholds)
-	{
-		double minimum = Double.MAX_VALUE;
-		
-		for(int i=0; i<thresholds.length; i++)
-			minimum = Math.min(minimum, thresholds[i]);
-		
-		return minimum;
-	}
-
-
-
 	public static void main(String[] args) throws Exception
-	{				
-		os = new FileOutputStream(output);
-		ps = new PrintStream(os);
-		
+	{		
 		final Table table = buildTable(args);
+		final String tableName = args[0];
+		final double threshold = Double.parseDouble(args[1]);
+		final double scale_factor = Double.parseDouble(args[2]);
 		
-		ps.print("TABLE ROWS: " + table.getSize() + "\n");
-		
-		/**
-		* edit the following line by modifiyng the threshold values you want to perform the IFM with
-		*/
-		final double[] thresholds = {0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1};
-		
-		final double threshold = computeMinimum(thresholds);
-		
-		System.out.println("\nrunning APRIORI...");
-		final List<Itemset> frequentItemsets = computeFrequentItemsets(threshold, args[0]);
-		
-		for(int i=0; i<thresholds.length; i++)
-		{			
-			final List<Constraint> frequencyConstraints = computeFC(frequentItemsets, table, thresholds[i]);
+		System.out.println("\nrunning APRIORI on " + tableName + " ...");
+		final List<Itemset> frequentItemsets = computeFrequentItemsets(threshold, tableName);
+			
+		final List<Constraint> frequencyConstraints = computeFC(frequentItemsets, table, threshold, scale_factor);
 
-			if(frequencyConstraints.size() > 0)
-			{
-				final Set<TIntHashSet> frontier = computeFrontier(frequentItemsets, table, thresholds[i]);
-				List<Constraint> infrequencyConstraints = computeIC(frontier, table, thresholds[i]);
-				
-				System.out.println("\ns = " + thresholds[i] + ",  m = " + frequencyConstraints.size() + ",  m' = " + infrequencyConstraints.size());
-				ps.print("\ns = " + thresholds[i] + ",  m = " + frequencyConstraints.size() + ",  m' = " + infrequencyConstraints.size() + "\n");
+		if(frequencyConstraints.size() > 0)
+		{
+			final Set<TIntHashSet> frontier = computeFrontier(frequentItemsets, table, threshold);
+			List<Constraint> infrequencyConstraints = computeIC(frontier, table, threshold, scale_factor);
+			
+			System.out.println("frequency constraints: " + frequencyConstraints.size() + "\ninfrequency constraints: " + infrequencyConstraints.size());
 
 //				for(Constraint c : frequencyConstraints)
 //					System.out.println(c.toString());
@@ -493,28 +371,17 @@ public class MainClass
 //				System.out.println();
 //				for(Constraint c : infrequencyConstraints)
 //					System.out.println(c.toString());
-							
-				long solverStart = System.currentTimeMillis();
-				Solver solver = new Solver(table, frequencyConstraints, infrequencyConstraints);
-				solver.runProgram();
-				long solverEnd = System.currentTimeMillis();
-				
-				System.out.println("done in " + (solverEnd-solverStart) + " ms");
-				ps.print("done in " + (solverEnd-solverStart) + " ms\n");
-				
-				final Table newTable = solver.buildNewTable(thresholds[i], args);
-				double accuracy = compare(frequentItemsets, thresholds[i], table, newTable);
-				
-				System.out.println("accuracy " + accuracy);
-				ps.print("accuracy " + accuracy + "\n");
-				
-				System.out.println("----------------------------------------------------");
-				ps.print("----------------------------------------------------\n");
-			}
+			
+			System.out.println("computing table ...");
+			final long solverStart = System.currentTimeMillis();
+			final Solver solver = new Solver(table, frequencyConstraints, infrequencyConstraints, scale_factor);
+			solver.runProgram();
+			final long solverEnd = System.currentTimeMillis();
+			
+			System.out.println("done in " + (solverEnd-solverStart) + " ms");
+			
+			solver.buildNewTable(threshold, args);
 		}
-		
-		ps.close();
-		os.close();
 	}
 
 }

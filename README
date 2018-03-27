@@ -1,11 +1,47 @@
-This code allows to perform Itemset Frequent Mining on No-SQL tables with multivalue attributes.
-If you are going to use this code, please cite the following article "", where further information
-on the implemented algorithm can be found. 
+OUTLINE:
 
-To run this code you first need to import IBM CPLEX1251 and Trove 3.1a1 (or later versions) libraries.
+This code implements an algorithm which performs Itemset Frequent Mining on no-SQL tables with multivalue attributes.
+Briefly, the algorithm functions as follows: given a no-SQL table as input, a set of frequency and infrequency constraints are produced
+according with the set of frequent itemsets computed for a given threshold; the output is a synthetic no-SQL table which complies with
+the metadata of the input table. The use of infrequency constraints avoid to obtain frequent itemsets in the output table 
+that are not frequent in the input table.
+
+If you use this code, please cite the following article "Extending Inverse Frequent Itemsets Mining to Generate Realistic Datasets: 
+Complexity, Accuracy and Emerging Applications", where further information on the implemented algorithm can be found. 
+
+
+LIBRARIES:
+
+To use this code you need to import the IBM CPLEX1251 and Trove 3.1a1 (or later versions) libraries in your java project.
 Both libraries are freely available at:
 
  - (CPLEX) https://www.ibm.com/developerworks/community/blogs/jfp/entry/CPLEX_Is_Free_For_Students?lang=en
  - (Trove) https://sourceforge.net/projects/trove4j/files/trove/3.0.3/
 
 
+QUICK START:
+
+Run MainClass.java with the following arguments: 'INPUT_TABLE_FILE_NAME' 'OUTPUT_TABLE_SIZE' '[ATTRIBUTE_NAME (sv|mv)]'
+where:
+ - INPUT_TABLE_FILE_NAME: is the name of the input table file;
+ - OUTPUT_TABLE_SIZE: is a double value meaning the size of the output table expressed as a percentage of the size of the input table;
+ - [ATTRIBUTE_NAME (sv|mv)]: is the list of the attributes names, each followed by 'sv' (if single value) or 'mv' (if multi value), 
+                             in the same order in which they appear in the input table.
+                             
+The input table must have space-separated integer values only, the end of each column must be denoted by the ';' character, and each
+tuple must be stored in a line. If your table contains non-integer values, you have to convert it such that each non-integer value
+is mapped to an integer value. At the end you can re-convert the output table according to your mapping.
+ 
+Example:
+Suppose to have a no-SQL table with the following attributes: 'NAME', 'AGE', 'HOBBIES', where 'NAME' and 'AGE' are single value 
+attributes, and 'HOBBIES' is a multi value attribute (i.e. values are list of items). 
+The table has 1000 tuples and it is stored in a file named 'MyNoSqlTable.txt' which looks as follows:
+
+1; 5; 9 10 24;
+3; 7; 10 11 19;
+2; 4; 9 22 41;
+....
+
+If I want to produce an output table of 2500 tuples, I have to use the following program arguments: 
+
+                                           MyNoSqlTable.txt 2.5 NAME sv AGE sv HOBBIES mv

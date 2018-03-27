@@ -1,8 +1,7 @@
 OUTLINE:
 
 This code implements an algorithm which performs Itemset Frequent Mining on no-SQL tables with multivalue attributes.
-Briefly, the algorithm functions as follows: given a no-SQL table as input, a set of frequency and infrequency constraints are produced according with the set of frequent itemsets computed for a given threshold; the output is a synthetic no-SQL table which complies with
-the metadata of the input table. 
+Briefly, the algorithm functions as follows: given a no-SQL table as input, a set of frequency and infrequency constraints are produced according with the set of frequent itemsets computed for a given threshold; the output is a synthetic no-SQL table which complies with the metadata of the input table. 
 The use of infrequency constraints avoid to obtain frequent itemsets in the output table that are not frequent in the input table.
 
 If you use this code, please cite the following article "Extending Inverse Frequent Itemsets Mining to Generate Realistic Datasets: Complexity, Accuracy and Emerging Applications", where further information on the implemented algorithm can be found. 

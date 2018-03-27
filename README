@@ -28,7 +28,7 @@ where:
  - [ATTRIBUTE_NAME ('sv'|'mv')]: is the list of the attributes names, each followed by 'sv' (if single value) or 'mv' (if multi value), in the same order in which they appear in the input table.
                              
 These arguments must appear exactly in the order shown above.
-The input table must be stored in a text file having space-separated integer values only, the ';' character at the end of each column, and each tuple stored in a line. If your table contains non-integer values, you have to convert it such that each non-integer value is mapped to an integer value.
+The input table must be stored in a text file having: (1) space-separated integer values only, (2) the ';' character at the end of each column, (3) each tuple stored in a line. If your table contains non-integer values, you have to convert it such that each non-integer value is mapped to an integer value.
 At the end you can re-convert the output table according to your mapping.
  
 Example:

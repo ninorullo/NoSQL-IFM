@@ -4,8 +4,6 @@ This code implements an algorithm which performs Itemset Frequent Mining on no-S
 Briefly, the algorithm functions as follows: given a no-SQL table as input, a set of frequency and infrequency constraints are produced according with the set of frequent itemsets computed for a given threshold; the output is a synthetic no-SQL table which complies with the metadata of the input table. 
 The use of infrequency constraints avoid to produce itemsets that result frequent in the output table but that are not frequent in the input table.
 
-If you use this code, please cite the following article "Extending Inverse Frequent Itemsets Mining to Generate Realistic Datasets: Complexity, Accuracy and Emerging Applications", where further information on the implemented algorithm can be found. 
-
 
 LIBRARIES:
 
@@ -36,6 +34,10 @@ During the execution, on the console will appear information about:
  - the produced transactions along with their number of duplicates;
  - the number of rows of the synthetic table;
  - the execution time in milliseconds.
+
+Optionally you can display:
+ - the set of frequent itemset along with their support by de-commenting 'log' function calls in the file Apriori.java;
+ - the set of frequency and infrequency constraints by de-commenting lines 529-534  in the file MainClass.java.
  
 Example:
 Suppose you have a no-SQL table with the following attributes: 'NAME', 'AGE', 'HOBBIES', where 'NAME' and 'AGE' are single value attributes, and 'HOBBIES' is a multi value attribute (i.e. values are list of items). 
@@ -64,4 +66,4 @@ The console will show the following text:
    [12, 2, 3, 6, 7, 8]			--	3.0
 
    ROWS: 250
-   done in 12910 ms
+   done in 2910 ms

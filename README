@@ -48,7 +48,7 @@ The table has 100 tuples and it is stored in a file named 'MyNoSqlTable.txt' whi
 2; 4; 9 22 41 15 17;
 ....
 
-If you want to produce an output table of 250 tuples according to the frequent itemset computed with a threshold 0.2 (20%), you have to use the following program arguments: 
+If you want to produce a synthetic table of 250 tuples according with the set of frequent itemset computed with a threshold 0.2 (20%), you have to use the following program arguments: 
 
                            MyNoSqlTable.txt 0.2 2.5 NAME sv AGE sv HOBBIES mv
                           

@@ -1,11 +1,12 @@
 /**
- * @author Antonino Rullo, Domenico Sacc‡, University of Calabria, 2018.
+ * @author Antonino Rullo, Domenico Sacc√†, University of Calabria, 2018.
  * @author Edoardo Serra, Boise State University, 2018
  * @copyright GNU General Public License v3
  * No reproduction in whole or part without maintaining this copyright notice
  * and imposing this condition on any subsequent users.
  */
 
+import gnu.trove.map.hash.TObjectIntHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 
 import java.util.*;
@@ -15,14 +16,14 @@ public class Constraint
 	private final String name;
 	private final int upperBound;
 	private final int lowerBound;
-	private final Map<String,Integer> singleValueAttributesConstraint;//key: column name; value: value
+	private final TObjectIntHashMap<String> singleValueAttributesConstraint;//key: column name; value: value
 	private final Map<String,TIntHashSet> multiValueAttributesConstraint;//key: column name; value: values
 	
 	public Constraint(
 						final String name, 
 						final int upperBound, 
 						final int lowerBound, 
-						final Map<String,Integer> svConstraints,
+						final TObjectIntHashMap<String> svConstraints,
 						final Map<String,TIntHashSet> mvConstraints
 					  )
 	{
@@ -33,7 +34,7 @@ public class Constraint
 		multiValueAttributesConstraint = mvConstraints;
 	}
 	
-	public Map<String,Integer> getSingleValueSttributeConstraints()
+	public TObjectIntHashMap<String> getSingleValueSttributeConstraints()
 	{
 		return singleValueAttributesConstraint;
 	}

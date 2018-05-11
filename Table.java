@@ -21,21 +21,19 @@ public class Table
 	private final int numberOfMVAttributes;
 	private final String[] columns;
 	
-	public Table(final List<Column<Integer>> singleValueAttr, final List<Column<TIntHashSet>> multiValueAttr, final String name, final String[] args)
+	public Table(final List<Column<Integer>> singleValueAttr, final List<Column<TIntHashSet>> multiValueAttr, final String tableName, final String[] attributes)
 	{
 		singleValueAttributes = singleValueAttr;
 		multiValueAttributes = multiValueAttr;		
 		size = singleValueAttr.get(0).getValues().size();
-		this.name = name + "_" + args[0];
+		this.name = "transactional_" + tableName;
 		numberOfSVAttributes = singleValueAttr.size();
 		numberOfMVAttributes = multiValueAttr.size();
 		
-		columns = new String[args.length-1];
+		columns = new String[attributes.length-1];
 		
-		for(int i=1; i<args.length; i++)
-		{
-			columns[i-1] = args[i];
-		}
+		for(int i=1; i<attributes.length; i++)
+			columns[i-1] = attributes[i];
 	}
 	
 	public List<Column<Integer>> get_SV_attributes()
@@ -162,4 +160,6 @@ public class Table
 		
 		return toReturn;
 	}
+	
+	
 }

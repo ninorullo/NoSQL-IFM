@@ -1,13 +1,14 @@
 OUTLINE:
 
-This code implements an algorithm which performs Itemset Frequent Mining on no-SQL tables with multivalue attributes.
-Briefly, the algorithm functions as follows: given a no-SQL table as input, a set of frequency and infrequency constraints are produced according with the set of frequent itemsets computed for a given threshold; the output is a synthetic no-SQL table which complies with the metadata of the input table. 
+This code implements an algorithm which performs Inverse Frequent Itemset Mining (IFM) on SQL and no-SQL tables (i.e. with multivalue attributes).
+Given a (no)SQL table as input, the algorithm outputs synthetic (no)SQL transactional table which complies with the frequency (and possibly infrequency) constraints build according with the frequent (infrequent) itemsets of the input table. 
+The use of infrequency constraints is optional, and identifies the IFM_I problem, i.e. the IFM problem with the addition of infrequency constraints.
 The use of infrequency constraints avoid to produce itemsets that result frequent in the output table but not in the input table with respect to the chosen threshold.
 
 
 LIBRARIES:
 
-To use this code you need to import the IBM CPLEX1251 and Trove 3.1a1 (or later versions) libraries in your java project.
+To use this code you need to import the IBM CPLEX125 and Trove 3.1a1 (or later versions) libraries in your java project.
 Both libraries are freely available at:
 
  - (CPLEX) https://www.ibm.com/developerworks/community/blogs/jfp/entry/CPLEX_Is_Free_For_Students?lang=en
@@ -16,54 +17,16 @@ Both libraries are freely available at:
 
 QUICK START:
 
-Run MainClass.java with the following arguments: 
+First, update the CONF file according to the parameters that identify your particular instance.
+Then, run MainClass.java.
 
-                      INPUT_TABLE_FILE_NAME THRESHOLD SCALE_FACTOR [ATTRIBUTE_NAME ('sv'|'mv')]
-where:
- - INPUT_TABLE_FILE_NAME: is the name of the input table file.
- - THRESHOLD: is the threshold used to compute the frequent itemsets of the input table.
- - SCALE_FACTOR: is a double value meaning the size of the output table expressed in terms of the size of the input table. The scale factor also affects the frequency of the itemsets in the output table, such that each frequent itemset of the input table will appear the same number of times in the output table, multiplied by SCALE_FACTOR. 
- - [ATTRIBUTE_NAME ('sv'|'mv')]: is the list of the attributes names, each followed by 'sv' (if single value) or 'mv' (if multi value), in the same order in which they appear in the input table.
-                             
-These arguments must appear exactly in the order shown above.
 The input table must be stored in a text file having: (1) space-separated integer values only, (2) the ';' character at the end of each column, (3) each tuple stored in a line. If your table contains non-integer values, you have to convert it such that each non-integer value is mapped to an integer value.
 At the end you can re-convert the output table according to your mapping.
-During the execution, on the console will appear information about:
- - what the algorithm is doing;
- - the number of frequency and infrequency constraints;
- - the produced transactions along with their number of duplicates;
- - the number of rows of the synthetic table;
- - the execution time in milliseconds.
+As the IFM problem has been implemented as an optimization problem, during the execution it will appear on the console the current objective value, which must decrease at each iteration, until it get to 0.
 
-Optionally you can display:
- - the set of frequent itemset along with their support by de-commenting 'log' function calls in the file Apriori.java;
- - the set of frequency and infrequency constraints by de-commenting lines 529-534  in the file MainClass.java.
+
+IMPORTANT NOTES
+
+ - The behavior of the program could vary with respect to the CPLEX version.
+ - With CPLEX125 you may have to reserve more space for the stack using the JVM argument -Xss, as for big instances a "java.lang.StackOverflowError at ilog.concert.IloColumn$Link.install(IloColumn.java:134)" may occur.
  
-Example:
-Suppose you have a no-SQL table with the following attributes: 'NAME', 'AGE', 'HOBBIES', where 'NAME' and 'AGE' are single value attributes, and 'HOBBIES' is a multi value attribute (i.e. values are list of items). 
-The table has 100 tuples and it is stored in a file named 'MyNoSqlTable.txt' which looks as follows:
-
-1; 5; 9 10 24;
-3; 7; 10 11 19 28 31 44;
-2; 4; 9 22 41 15 17;
-....
-
-If you want to produce a synthetic table of 250 tuples according with the set of frequent itemset computed with a threshold 0.2 (20%), you have to use the following program arguments: 
-
-                           MyNoSqlTable.txt 0.2 2.5 NAME sv AGE sv HOBBIES mv
-                          
-The console will show the following text:
-
-   running APRIORI on table ...
-   frequency constraints: 294
-   infrequency constraints: 49
-   computing table ...
-   [9, 12, 1, 3, 8]			--	50.0
-   [12, 2, 3, 7, 8]			--	63.0
-   [9, 12, 1, 3, 7]			--	81.0
-   [9, 10, 1, 3, 5, 6]			--	16.0
-   [12, 1, 3, 7]			--	37.0
-   [12, 2, 3, 6, 7, 8]			--	3.0
-
-   ROWS: 250
-   done in 2910 ms

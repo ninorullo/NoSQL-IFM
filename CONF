@@ -11,7 +11,7 @@
 
  -- file name of the input table
 
-#INPUT_TABLE_NAME: table
+#INPUT_TABLE_NAME:
 
 
  -- the list of the attributes names, each followed by 'sv' (if single value) or 'mv' (if multi value), in the same order they appear in the input table, and separated by white spaces.
@@ -19,7 +19,7 @@
     and by the multi value attributes GROUPS and EVENTS (an individual may belong to various groups and may attend a number of events)
     the text to insert is: NAME sv AGE sv GENDER sv GROUPS mv EVENTS mv
 
-#INPUT_TABLE_ATTRIBUTES: STATE sv STARS sv CATEGORIES mv REVIEWERS mv
+#INPUT_TABLE_ATTRIBUTES:
 
 
  -- the list of the multi value attributes that allow empty sets as values, separated by a white space.
@@ -33,17 +33,17 @@
 
  -- the threshold used to compute the frequent itemsets of the input table, expressed as a double value in the range (0,1]
 
-#MINIMUM_SUPPORT: 0.02
+#MINIMUM_SUPPORT:
 
 
  -- name of the output table
 
-#OUTPUT_TABLE_NAME: outputTable
+#OUTPUT_TABLE_NAME:
 
 
  -- the problem you want to solve: the classical Inverse Frequent Itemset Mining (value IFM), or the Inverse Frequent Itemset Mining with the addition of infrequency constraints (value IFM_I)
 
-#PROBLEM: IFM_I
+#PROBLEM:
 
 
 /* Optional Parameters.

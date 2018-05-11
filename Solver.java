@@ -7,6 +7,10 @@
  */
 
 import gnu.trove.iterator.TIntIterator;
+import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.map.hash.TObjectDoubleHashMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
 import gnu.trove.set.hash.TIntHashSet;
 import ilog.concert.*;
 import ilog.cplex.IloCplex;
@@ -29,31 +33,45 @@ public class Solver
 	private final Map<String,IloRange> constraints7 = new HashMap<String,IloRange>();//frequency constraints
 	private final Map<String,IloRange> constraints8 = new HashMap<String,IloRange>();//infrequency constraints
 	private final Map<String,IloRange> sizeConstraints = new HashMap<String,IloRange>();
-	private final Map<String,Map<Integer,IloIntVar>> variables = new HashMap<String,Map<Integer,IloIntVar>>();//key: column name, value: mapping value-->CPLEX variable
-	private final Map<IloNumVar,List<Integer>> transactions = new HashMap<IloNumVar,List<Integer>>();//key: x; value: itemsets => index=0 --> SV attribute, index>0 --> MV attribute
+	private final Map<String,TIntObjectHashMap<IloIntVar>> variables = new HashMap<String,TIntObjectHashMap<IloIntVar>>();//key: column name, value: mapping value-->CPLEX variable
+	private final Map<IloNumVar,TIntArrayList> transactions = new HashMap<IloNumVar,TIntArrayList>();//key: x; value: itemsets => index=0 --> SV attribute, index>0 --> MV attribute
 	private Set<List<IloIntVar>> lastTransactionsVars = new HashSet<List<IloIntVar>>();
-	private Map<Integer,List<Integer>> lastTransactions;
+	private TIntObjectHashMap<TIntArrayList> lastTransactions;
 	private int xIndex = 0;
 	private IloLinearNumExpr constraintOnConstraints;
 	private final double scale_factor;
+	private final long start;
+	private TObjectDoubleHashMap<TIntArrayList> outputTable = new TObjectDoubleHashMap<TIntArrayList>();
+	private IloObjective objectiveILP;
+	private IloRange coc;
+	private final Set<String> emptySet;
+	private final String outputTableName;
 	
 	public Solver(
 			final Table table,
 			final List<Constraint> frequencyConstraints, 
 			final List<Constraint> infrequencyConstraints,
-			final double sf
-		      )
+			final double scaleFactor,
+			final long start,
+			final Set<String> emptySet,
+			final String outputTable
+		     )
 	{
 		this.table = table;
 		this.frequencyConstraints = frequencyConstraints;
 		this.infrequencyConstraints = infrequencyConstraints;
-		scale_factor = sf;
+		scale_factor = scaleFactor;
+		this.start = start;
 		
 		for(final Column<Integer> svColumn : table.get_SV_attributes())
-			variables.put(svColumn.getName(), new HashMap<Integer,IloIntVar>());
+			variables.put(svColumn.getName(), new TIntObjectHashMap<IloIntVar>());
 		
 		for(final Column<TIntHashSet> mvColumn : table.get_MV_attributes())
-			variables.put(mvColumn.getName(), new HashMap<Integer,IloIntVar>());
+			variables.put(mvColumn.getName(), new TIntObjectHashMap<IloIntVar>());
+		
+		this.emptySet = new HashSet<String>(emptySet);
+		
+		outputTableName = outputTable;
 		
 		buildILP();
 		buildLP();
@@ -75,7 +93,7 @@ public class Solver
 		
 		try
 		{			
-			final File newTable = new File("new_" + table.getName() + "_" + support);
+			final File newTable = new File(outputTableName + "_" + support);
 			final FileOutputStream os = new FileOutputStream(newTable);
 			final PrintStream ps = new PrintStream(os);
 			
@@ -85,15 +103,18 @@ public class Solver
 				
 				if(duplicates > 0)
 				{
-					final List<Integer> transaction = transactions.get(x);
+					final TIntArrayList transaction = transactions.get(x);
 					
-					for(int i=0; i<(int)duplicates; i++)
+					for(int i=0; i<Math.round(duplicates); i++)
 					{	
 						for(final Column<TIntHashSet> column : multiValueAttributes)
 							column.getValues().add(new TIntHashSet());
 
-						for(final int value : transaction)
+						TIntIterator iterator = transaction.iterator();
+						
+						while(iterator.hasNext())
 						{
+							int value = iterator.next();							
 							ps.print(value + " ");
 							
 							boolean isSV = false;
@@ -139,9 +160,9 @@ public class Solver
 			ps.close();
 			os.close();
 
-			toReturn = new Table(singleValueAttributes, multiValueAttributes, "new_" + table.getName() + "_" + support, args);
+			toReturn = new Table(singleValueAttributes, multiValueAttributes, outputTableName + "_" + support, args);
 			
-			final File outputTable = new File("outputTable" + "_" + support);
+			final File outputTable = new File(outputTableName + "_" + support);
 			final FileOutputStream os2 = new FileOutputStream(outputTable);
 			final PrintStream ps2 = new PrintStream(os2);
 			
@@ -157,6 +178,11 @@ public class Solver
 		return toReturn;
 	}
 	
+	public TObjectDoubleHashMap<TIntArrayList> getOutputTable()
+	{
+		return outputTable;
+	}
+	
 	/**
 	 * maps each value to a CPLEX variable and adds an ILP constraint for each attribute to avoid null values in the synthetic table
 	 */
@@ -164,9 +190,9 @@ public class Solver
 	{
 		try
 		{
-			for(final Column<T> sv_column : columns)
+			for(final Column<T> column : columns)
 			{
-				final String columnName = sv_column.getName();
+				final String columnName = column.getName();
 				
 				TIntHashSet attributeDomain;
 				
@@ -189,9 +215,18 @@ public class Solver
 				}
 				
 				if(isSingleValue)
-					cplexILP.addEq(constraint_on_attribute, 1).setName(columnName);//sr1 + sr2 + sr3 = 1
+				{
+					IloRange addEq = cplexILP.addEq(constraint_on_attribute, 1);//sr1 + sr2 + sr3 = 1
+					addEq.setName(columnName);
+				}
 				else
-					cplexILP.addGe(constraint_on_attribute, 1).setName(columnName);//sr1 + sr2 + sr3 >= 1
+				{
+					if(!emptySet.contains(columnName))
+					{
+						IloRange addGe = cplexILP.addGe(constraint_on_attribute, 1);//sr1 + sr2 + sr3 >= 1
+						addGe.setName(columnName);
+					}
+				}
 			}
 		}
 		catch (IloException e)
@@ -202,6 +237,7 @@ public class Solver
 	
 	/**
 	 * maps each frequency and infrequency constraint to a CPLEX variable and adds ILP constraints
+	 * @param constraints
 	 */
 	private void mappingConstraints(final List<Constraint> constraints)
 	{
@@ -226,12 +262,12 @@ public class Solver
 				
 				int counter = 0;
 				final IloLinearIntExpr linearIntExpr = cplexILP.linearIntExpr();
-				final Map<String,Integer> singleValueSttributeConstraints = c.getSingleValueSttributeConstraints();
-				final Map<String,TIntHashSet> multiValueSttributeConstraints = c.getMultiValueSttributeConstraints();
+				final TObjectIntHashMap<String> singleValueAttributeConstraints = c.getSingleValueSttributeConstraints();
+				final Map<String,TIntHashSet> multiValueAttributeConstraints = c.getMultiValueSttributeConstraints();
 				
-				for(final String columnName : singleValueSttributeConstraints.keySet())
+				for(final String columnName : singleValueAttributeConstraints.keySet())
 				{
-					final int value = singleValueSttributeConstraints.get(columnName);
+					final int value = singleValueAttributeConstraints.get(columnName);
 					final IloIntVar var = variables.get(columnName).get(value);
 					counter++;
 					linearIntExpr.addTerm(1, var);
@@ -239,13 +275,13 @@ public class Solver
 					final IloLinearIntExpr expr = cplexILP.linearIntExpr();
 					expr.addTerm(1, var);
 					expr.addTerm(-1, constraintVar);
-					cplexILP.addGe(expr, 0).setName(constraintVar.getName()+"_"+columnName);//sr1 - c1 >= 0
+					IloRange addGe = cplexILP.addGe(expr, 0);
+					addGe.setName(constraintVar.getName()+"_"+columnName);//sr1 - c1 >= 0
 				}
 				
-				for(final String columnName : multiValueSttributeConstraints.keySet())
+				for(final String columnName : multiValueAttributeConstraints.keySet())
 				{
-					final TIntHashSet values = multiValueSttributeConstraints.get(columnName);
-					
+					final TIntHashSet values = multiValueAttributeConstraints.get(columnName);					
 					final TIntIterator iterator = values.iterator();
 					
 					while(iterator.hasNext())
@@ -257,14 +293,16 @@ public class Solver
 						final IloLinearIntExpr expr = cplexILP.linearIntExpr();
 						expr.addTerm(1, var);
 						expr.addTerm(-1, constraintVar);
-						cplexILP.addGe(expr, 0).setName(constraintVar.getName()+"_"+columnName);//ct1 - c1 >= 0
+						IloRange addGe = cplexILP.addGe(expr, 0);
+						addGe.setName(constraintVar.getName()+"_"+columnName);//ct1 - c1 >= 0
 					}
 				}
 				
 				linearIntExpr.addTerm(-1, constraintVar);
 				int constant = counter - 1;
 				
-				cplexILP.addLe(linearIntExpr, constant).setName(constraintVar.getName());//sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
+				IloRange addLe = cplexILP.addLe(linearIntExpr, constant);
+				addLe.setName(constraintVar.getName());//sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
 			}
 		}
 		catch (IloException e)
@@ -277,10 +315,10 @@ public class Solver
 	/**
 	 * example: 
 	 * 
-	 * attribute        SV1   |   SV2   |    MV1   |     MV2
-	 * domain         {1,2,3} | {4,5,6} |  {7,8,9} | {10,11,12}
+	 * attribute     STARS (SV)  | STATES (SV) |   CATS (MV)  |    REVS (MV)
+	 * domain          {1,2,3}   |   {4,5,6}   |    {7,8,9}   |   {10,11,12}
 	 *  
-	 * frequency constraint fc1: [SV1=1, SV2=4, MV1>={7,8}, MV2>={10,11}]
+	 * frequency constraint fc1: [STARS=1, STATES=4, CATS>={7,8}, REVS>={10,11}]
 	 * 
 	 * variables: c1-->fc1
 	 * 
@@ -301,27 +339,29 @@ public class Solver
 	 *            r3-->12
 	 *            
 	 * constraint on constraints:	fc1 >= 0.00001
-	 * constraint on SV1:  	sr1 + sr2 + sr3 = 1
-	 * constraint on SV2: 	st1 + st2 + st3 = 1
-	 * constaint on MV1: 	ct1 + ct2 + ct3 >= 1
-	 * constraint on MV2: 	r1 + r2 + r3 >= 1
+	 * constraint on STARS:  	sr1 + sr2 + sr3 = 1
+	 * constraint on STATES: 	st1 + st2 + st3 = 1
+	 * constaint on CATS: 		ct1 + ct2 + ct3 >= 1
+	 * constraint on REVS: 		r1 + r2 + r3 >= 1
 	 * 
 	 * ILP constraint for fc1:
-	 * 			sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
-	 * 			sr1 - c1 >= 0
-	 * 			st1 - c1 >= 0
-	 * 			ct1 - c1 >= 0
-	 * 			ct2 - c1 >= 0
-	 * 			r1 - c1 >= 0
-	 * 			r2 - c1 >= 0
+	 * 							sr1 + st1 + ct1 + ct2 + r1 + r2 - c1 <= 5
+	 * 							sr1 - c1 >= 0
+	 * 							st1 - c1 >= 0
+	 * 							ct1 - c1 >= 0
+	 * 							ct2 - c1 >= 0
+	 * 							r1 - c1 >= 0
+	 * 							r2 - c1 >= 0
 	 */
 	private void buildILP()
 	{
 		try
 		{
 			cplexILP = new IloCplex();
-			cplexILP.setParam(IloCplex.IntParam.SolnPoolIntensity, 1);
-			cplexILP.setParam(IloCplex.DoubleParam.TimeLimit,10*60);
+			cplexILP.setParam(IloCplex.IntParam.SolnPoolIntensity, 4);
+//			cplexILP.setParam(IloCplex.IntParam.SolnPoolCapacity, 20);
+			cplexILP.setOut(null);
+			cplexILP.setWarning(null);	
 			
 			constraintOnConstraints = cplexILP.linearNumExpr();
 			
@@ -331,7 +371,8 @@ public class Solver
 			mappingConstraints(frequencyConstraints);
 			mappingConstraints(infrequencyConstraints);
 			
-			cplexILP.addGe(constraintOnConstraints, 0.00001);
+			objectiveILP = cplexILP.addMaximize(constraintOnConstraints);
+			coc = cplexILP.addGe(constraintOnConstraints, 0.01);
 		}
 		catch (IloException e)
 		{
@@ -370,7 +411,12 @@ public class Solver
 				numExpr6 = cplex.linearNumExpr();
 				numExpr6.addTerm(1, w);
 				
+				final IloNumVar w2 = cplex.numVar(0, Double.POSITIVE_INFINITY);
+				w2.setName("w2_" + fcName);
+				
+				objective.addTerm(1, w2);
 				numExpr7 = cplex.linearNumExpr();
+				numExpr7.addTerm(-1, w2);
 				
 				fc6Expressions.put("f_" + fcName, numExpr6);
 				fc7Expressions.put("f_" + fcName, numExpr7);
@@ -387,7 +433,7 @@ public class Solver
 			w0.setName("w0");
 			
 			objective.addTerm(1, w0);
-			cplex.addMinimize(objective);
+			IloObjective addMinimize = cplex.addMinimize(objective);
 			
 			final IloLinearNumExpr numExpr10 = cplex.linearNumExpr();
 			numExpr10.addTerm(1, w0);
@@ -403,7 +449,7 @@ public class Solver
 				lastTransactionsVars = new HashSet<List<IloIntVar>>();
 				final int solnPoolNsolns = cplexILP.getSolnPoolNsolns();
 				
-				for(int t=0; t<solnPoolNsolns && nonSatisfiedConstraints.size()>0; t++)
+				for(int t=0; t<solnPoolNsolns; t++)
 				{
 					final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
 					
@@ -412,39 +458,48 @@ public class Solver
 					
 					final IloNumVar x = cplex.numVar(0, Double.POSITIVE_INFINITY);
 					x.setName("x" + xIndex);
-					xIndex++;
-										
-					while(iterator.hasNext() && nonSatisfiedConstraints.size()>0)
+				
+					boolean b = false;
+					
+					while(iterator.hasNext())
 					{
 						var = iterator.nextNumVar();
 						varName = var.getName();
 						
 						if(cplexILP.getValue(var,t) > 0)
-							if(nonSatisfiedConstraints.remove(varName))
+						{
+							b = true;
+							nonSatisfiedConstraints.remove(varName);
+							constraintsVariables.add(varName);
+							
+							if(varName.startsWith("f"))
 							{
-								constraintsVariables.add(varName);
-								
-								if(varName.startsWith("f"))
-								{
-									fc6Expressions.get(varName).addTerm(1, x);//variables and constraints have the same name
-									fc7Expressions.get(varName).addTerm(1, x);
-								}
-								else
-									if(varName.startsWith("i"))
-										icExpressions.get(varName).addTerm(1, x);
+								fc6Expressions.get(varName).addTerm(1, x);//variables and constraints have the same name
+								fc7Expressions.get(varName).addTerm(1, x);
 							}
+							else
+								if(varName.startsWith("i"))
+									icExpressions.get(varName).addTerm(1, x);
+						}
 					}
 					
-					numExpr10.addTerm(1, x);
-					numExpr11.addTerm(1, x);
+					if(b)
+					{
+						numExpr10.addTerm(1, x);
+						numExpr11.addTerm(1, x);
+						xIndex++;
+					}
 					
-					final List<Integer> one_Transaction = lastTransactions.get(t);
+					final TIntArrayList one_Transaction = lastTransactions.get(t);
 					transactions.put(x, one_Transaction);
 					
 					final List<IloIntVar> transVars = new ArrayList<IloIntVar>();
+					TIntIterator iterator2 = one_Transaction.iterator();
 					
-					for(final int i : one_Transaction)
+					while(iterator2.hasNext())
 					{
+						int i = iterator2.next();
+						
 						for(final String columnName : variables.keySet())
 							if(variables.get(columnName).containsKey(i))
 							{
@@ -493,18 +548,19 @@ public class Solver
 	}
 	
 
-	public void runProgram()
+	public void runProgram(final int timeCut)
 	{
 		try 
 		{
 			cplex.solve();
-
-			if(runILP(constraints6, constraints7, constraints8, lastTransactionsVars, null) > 0)
+			System.out.println("obj: "+cplex.getObjValue());
+			boolean timeIsOver = false;
+			
+			while(runILP(constraints6, constraints7, constraints8, lastTransactionsVars, null)>0 && !timeIsOver)
 			{
 				lastTransactionsVars = new HashSet<List<IloIntVar>>();
-				int solutions = cplexILP.getSolnPoolNsolns();
 				
-				for(int t=0; t<solutions; t++)
+				for(int t=0; t<cplexILP.getSolnPoolNsolns(); t++)
 				{
 					final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
 				
@@ -520,77 +576,92 @@ public class Solver
 						varName = var.getName();
 					}
 					
-					if(varName.startsWith("f"))//frequency constraints
-						column = cplex.column(constraints6.get(varName), 1).and(cplex.column(constraints7.get(varName), 1));
-					else
-						if(varName.startsWith("i"))//infrequency constraints
-							column = cplex.column(constraints8.get(varName), 1);			
-					
-					while(iterator.hasNext())
+					if(value > 0)
 					{
-						var = iterator.nextNumVar();
-						varName = var.getName();
-						value = cplexILP.getValue(var,t);
+						if(varName.startsWith("f"))//frequency constraints
+							column = cplex.column(constraints6.get(varName), 1).and(cplex.column(constraints7.get(varName), 1));
+						else
+							if(varName.startsWith("i"))//infrequency constraints
+								column = cplex.column(constraints8.get(varName), 1);			
 						
-						if(value > 0)
-						{							
-							if(varName.startsWith("f"))//frequency constraints
-									column = column.and(cplex.column(constraints6.get(varName), 1)).and(cplex.column(constraints7.get(varName), 1));
-							else
-								if(varName.startsWith("i"))//infrequency constraints	
-									column = column.and(cplex.column(constraints8.get(varName), 1));
-						}
-					}
-					
-					column = column.and(cplex.column(sizeConstraints.get("C10"), 1)).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11	
-					
-					final IloNumVar x = cplex.numVar(column, 0, Double.POSITIVE_INFINITY);
-					x.setName("x" + xIndex);
-					xIndex++;
-					
-					final List<Integer> one_Transaction = lastTransactions.get(t);
-					transactions.put(x, one_Transaction);
-					
-					final List<IloIntVar> transVars = new ArrayList<IloIntVar>();
-					
-					for(final int i : one_Transaction)
-					{
-						for(final String columnName : variables.keySet())
-							if(variables.get(columnName).containsKey(i))
-							{
-								transVars.add(variables.get(columnName).get(i));
-								break;
+						while(iterator.hasNext())
+						{
+							var = iterator.nextNumVar();
+							varName = var.getName();
+							value = cplexILP.getValue(var,t);
+							
+							if(value > 0)
+							{							
+								if(varName.startsWith("f"))//frequency constraints
+										column = column.and(cplex.column(constraints6.get(varName), 1)).and(cplex.column(constraints7.get(varName), 1));
+								else
+									if(varName.startsWith("i"))//infrequency constraints	
+										column = column.and(cplex.column(constraints8.get(varName), 1));
 							}
+						}
+						
+						column = column.and(cplex.column(sizeConstraints.get("C10"), 1)).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11	
+						
+						final IloNumVar x = cplex.numVar(column, 0, Double.POSITIVE_INFINITY);
+						x.setName("x" + xIndex);
+						xIndex++;
+						
+						final TIntArrayList one_Transaction = lastTransactions.get(t);
+						transactions.put(x, one_Transaction);
+						
+						final List<IloIntVar> transVars = new ArrayList<IloIntVar>();
+						
+						TIntIterator iterator2 = one_Transaction.iterator();
+						
+						while(iterator2.hasNext())
+						{
+							int i = iterator2.next();
+							
+							for(final String columnName : variables.keySet())
+								if(variables.get(columnName).containsKey(i))
+								{
+									transVars.add(variables.get(columnName).get(i));
+									break;
+								}
+						}
+						
+						lastTransactionsVars.add(transVars);
 					}
-					
-					lastTransactionsVars.add(transVars);
 				}
 				
-				runProgram();
-			}
-			else
-			{				
-				double rows = 0;
+				cplex.solve();
+				System.out.println("obj: "+cplex.getObjValue());
+
+				final long currentTimeMillis = System.currentTimeMillis();
+				final long pastTime = currentTimeMillis - start;
+				timeIsOver = timeCut == 0 ? false : pastTime >= timeCut ? true : false;
 				
-				for(final IloNumVar x : transactions.keySet())
+				System.gc();
+			}	
+			
+			double rows = 0;
+			
+			for(final IloNumVar x : transactions.keySet())
+			{
+				final double duplicates = cplex.getValue(x);
+				
+				if(duplicates > 0.0)
 				{
-					final double duplicates = cplex.getValue(x);
+					System.out.println(transactions.get(x).toString() + "\t\t\t--\t" + duplicates);
+					rows += duplicates;
 					
-					if(duplicates > 0.0)
-					{
-						System.out.println(transactions.get(x).toString() + "\t\t\t--\t" + duplicates);
-						rows += duplicates;
-					}
+					outputTable.put(transactions.get(x), duplicates);
 				}
-				
-				System.out.println("\nROWS: " + (int)rows);
 			}
+			
+			System.out.println("\ntime cut: " + timeIsOver);
 		}
 		catch (IloException e)
 		{
 			e.printStackTrace();
 		}
 	}
+	
 	
 	private double runILP(
 				final Map<String,IloRange> c6, 
@@ -602,74 +673,65 @@ public class Solver
 	{
 		try
 		{
+			cplexILP.remove(coc);
+			
 			final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
 			
 			if(c6!=null && c7!=null && c8!=null)
 			{
 				while(iterator.hasNext())
 				{
-					final String name = iterator.nextNumVar().getName();
+					final IloNumVar nextNumVar = iterator.nextNumVar();
+					final String name = nextNumVar.getName();
 										
 					if(name.startsWith("f"))
+					{
 						iterator.setValue(cplex.getDual(constraints6.get(name)) + cplex.getDual(constraints7.get(name)));
+						cplexILP.setLinearCoef(objectiveILP, cplex.getDual(constraints6.get(name)), nextNumVar);
+						cplexILP.setLinearCoef(objectiveILP, cplex.getDual(constraints7.get(name)), nextNumVar);
+					}
 					else
 						if(name.startsWith("i"))
+						{
 							iterator.setValue(cplex.getDual(constraints8.get(name)));
+							cplexILP.setLinearCoef(objectiveILP, cplex.getDual(constraints8.get(name)), nextNumVar);
+						}
 				}
 				
-				cplexILP.addGe(constraintOnConstraints, 0.000001);
+				final double sum = cplex.getDual(sizeConstraints.get("C10")) + cplex.getDual(sizeConstraints.get("C11"));
+				final double d = 0.0001-sum;
+				coc = cplexILP.addGe(constraintOnConstraints, d);
 			}
 			else
-			{
+			{				
 				while(iterator.hasNext())
 				{
-					if(nonSatisfiedConstraints.contains(iterator.nextNumVar().getName()))
-						iterator.setValue(1);
+					final IloNumVar v = iterator.nextNumVar();
+					final String name = v.getName();
+					
+					if(nonSatisfiedConstraints.contains(name))
+					{
+						iterator.setValue(1.0);
+						cplexILP.setLinearCoef(objectiveILP, 1.0, v);
+					}
 					else
-						iterator.setValue(0);
+					{
+						iterator.setValue(0.0);
+						cplexILP.setLinearCoef(objectiveILP, 0.0, v);
+					}
 				}
 				
-				cplexILP.addGe(constraintOnConstraints, 0.000001);
+				coc = cplexILP.addGe(constraintOnConstraints, 0.01);
 			}
-
-			if(transactionsVars.size() > 0)
-				for(final List<IloIntVar> transactionVars : transactionsVars)
-				{
-					final int constant = transactionVars.size() - 1;
-					final IloLinearIntExpr intExpr = cplexILP.linearIntExpr();
-					
-					final Collection<IloIntVar> multiValuesAttributesVariables = new HashSet<IloIntVar>();
-					
-					for(final Column<TIntHashSet> mvColumn : table.get_MV_attributes())
-						multiValuesAttributesVariables.addAll(variables.get(mvColumn.getName()).values());
-					
-					for(final IloIntVar var : transactionVars)
-					{
-						intExpr.addTerm(1, var);
-						
-						multiValuesAttributesVariables.remove(var);
-					}
-					
-					for(final IloIntVar var : multiValuesAttributesVariables)
-						intExpr.addTerm(-1, var);
-					
-					cplexILP.addLe(intExpr, constant);
-				}
 			
-			cplexILP.setOut(null);
-			cplexILP.setWarning(null);	
 			cplexILP.populate();
 			
 			getTransactions();
 			
 			final int transactions = cplexILP.getSolnPoolNsolns();
 
-			double max = 0;
-			
-			for(int t=0; t<transactions; t++)
-				max = Math.max(max, cplexILP.getValue(constraintOnConstraints,t));
-
-			return max;
+			if(transactions > 0)
+				return 1;
 		}
 		catch (IloException e)
 		{
@@ -682,7 +744,7 @@ public class Solver
 
 	private void getTransactions()
 	{
-		lastTransactions = new HashMap<Integer,List<Integer>>();
+		lastTransactions = new TIntObjectHashMap<TIntArrayList>();
 		
 		try
 		{
@@ -690,16 +752,21 @@ public class Solver
 
 			for(int t=0; t<transactions; t++)
 			{
-				final List<Integer> transaction = new ArrayList<Integer>();
+				final TIntArrayList transaction = new TIntArrayList();
 				
 				for(final String columnName : variables.keySet())
-					for(final int i : variables.get(columnName).keySet())
+				{
+					final TIntIterator iterator = variables.get(columnName).keySet().iterator();
+					
+					while(iterator.hasNext())
 					{
+						final int i = iterator.next();						
 						final IloIntVar var = variables.get(columnName).get(i);
 						
 						if(cplexILP.getValue(var,t) > 0)
 							transaction.add(i);
 					}
+				}
 				
 				lastTransactions.put(t, transaction);
 			}
@@ -713,4 +780,5 @@ public class Solver
 			e.printStackTrace();
 		}
 	}	
+
 }

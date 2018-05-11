@@ -7,25 +7,38 @@
  */
 
 import gnu.trove.iterator.TIntIterator;
+import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.hash.*;
 import gnu.trove.set.hash.TIntHashSet;
 
 import java.io.*;
 import java.util.*;
 
 public class MainClass
-{		
-	private static Table buildTable(final String[] args)
+{	
+	private static String inputTableName;
+	private static String outputTableName;
+	private static double minimumSupport;
+	private static double scaleFactor;
+	private static int timeCut;
+	private static String[] attributes;
+	private static Set<String> emptySet = new HashSet<String>();
+	private static String problem;
+	private static boolean showFrequentItemsets = false;
+	private static boolean showFrequencyConstraints = false;
+	
+	private static Table buildTable()
 	{		
 		final Map<Integer,Column<Integer>> sv_columns = new TreeMap<Integer,Column<Integer>>();
 		final Map<Integer,Column<TIntHashSet>> mv_columns = new TreeMap<Integer,Column<TIntHashSet>>();
 		
 		int cIndex = 0;
 		
-		for(int i=3; i<args.length-1; i++)
+		for(int i=0; i<attributes.length-1; i++)
 		{
-			final String columnName = args[i];
+			final String columnName = attributes[i];
 			i++;
-			final boolean isSingleValue = args[i].equals("sv") ? true : false;
+			final boolean isSingleValue = attributes[i].equals("sv") ? true : false;
 			
 			if(isSingleValue)
 				sv_columns.put(cIndex, new Column<Integer>(new ArrayList<Integer>(), columnName));
@@ -37,8 +50,8 @@ public class MainClass
 		
 		try
 		{
-			final BufferedReader reader = new BufferedReader(new FileReader(args[0]));
-			final File table = new File("transactional_" + args[0]);
+			final BufferedReader reader = new BufferedReader(new FileReader(inputTableName));
+			final File table = new File("transactional_" + inputTableName);
 			final FileOutputStream os = new FileOutputStream(table);
 			final PrintStream ps = new PrintStream(os);
 			
@@ -94,7 +107,7 @@ public class MainClass
 		for(final int i : mv_columns.keySet())
 			mv_list.add(mv_columns.get(i));
 		
-		Table table = new Table(sv_list, mv_list, "transactional", args);
+		Table table = new Table(sv_list, mv_list, inputTableName, attributes);
 		return table;
 	}
 	
@@ -106,7 +119,7 @@ public class MainClass
 	
 		try
 		{
-			apriori = new Apriori(parameters);
+			apriori = new Apriori(parameters, showFrequentItemsets);
 		}
 		catch (Exception e)
 		{
@@ -128,13 +141,13 @@ public class MainClass
 			
 			if(support >= threshold)
 			{
-				final Map<String,Integer> singleValueAttributeConstraint = new HashMap<String,Integer>();
+				final TObjectIntHashMap<String> singleValueAttributeConstraint = new TObjectIntHashMap<String>();
 				final Map<String,TIntHashSet> multiValueAttributeConstraint = new HashMap<String,TIntHashSet>();
 				
 				final List<Column<Integer>> sv_attributes = table.get_SV_attributes();
 				final List<Column<TIntHashSet>> mv_attributes = table.get_MV_attributes();
-				
-				final TIntHashSet items = itemset.getSetOfItems();
+
+				final TIntHashSet items = itemset.getElements();
 				
 				final TIntIterator iterator = items.iterator();
 				
@@ -186,38 +199,101 @@ public class MainClass
 		
 		final List<Column<Integer>> sv_attributes = table.get_SV_attributes();
 		final List<Column<TIntHashSet>> mv_attributes = table.get_MV_attributes();
+		
+		for(final Column<Integer> svAtt : sv_attributes)
+			frontier.addAll(computeFrontierSvAttribute(frequentItemsets, table, s, svAtt));
+
+		for(final Column<TIntHashSet> mvAtt : mv_attributes)
+			frontier.addAll(computeFrontierMvAttribute(frequentItemsets, table, s, mvAtt));
+		
+		return frontier;
+	}
+	
+	
+	private static Set<TIntHashSet> computeFrontierMvAttribute(final List<Itemset> frequentItemsets, final Table table, final double s, final Column<TIntHashSet> mvAtt)
+	{
+		final Set<TIntHashSet> frontier = new HashSet<TIntHashSet>();
 
 		for(final Itemset itemset : frequentItemsets)
 		{
 			if((double)itemset.getSupport()/(double)table.getSize() >= s)
 			{
-				final TIntHashSet setOfItems = itemset.getSetOfItems();
-						
-				for(final Column<Integer> column : sv_attributes)
+				final TIntHashSet setOfItems = itemset.getElements();
+				
+				final TIntHashSet domainMultiValueAttribute = new TIntHashSet(table.domainMultiValueAttribute(mvAtt.getName()));
+				domainMultiValueAttribute.removeAll(setOfItems);
+				
+				final TIntIterator iterator = domainMultiValueAttribute.iterator();
+				
+				while(iterator.hasNext())
 				{
-					final TIntHashSet domainSingleValueAttribute = new TIntHashSet(table.domainSingleValueAttribute(column.getName()));
+					final TIntHashSet newItemset = new TIntHashSet(setOfItems);
+					newItemset.add(iterator.next());
 					
-					if(!domainSingleValueAttribute.removeAll(setOfItems))
-					{
-						final TIntIterator iterator = domainSingleValueAttribute.iterator();
+					frontier.add(newItemset);
+				}
+			}
+		}
 
-						while(iterator.hasNext())
-						{
-							final TIntHashSet newItemset = new TIntHashSet(setOfItems);
-							newItemset.add(iterator.next());
-							
-							frontier.add(newItemset);
-						}
+		TIntHashSet singleton;
+		final TIntIterator iterator = table.domainMultiValueAttribute(mvAtt.getName()).iterator();
+		
+		while(iterator.hasNext())
+		{
+			singleton = new TIntHashSet();
+			singleton.add(iterator.next());
+			frontier.add(singleton);
+		}		
+				
+		Set<TIntHashSet> copyOfFrontier = new HashSet<TIntHashSet>(frontier);
+		
+		for(final TIntHashSet itemset : copyOfFrontier)
+			for(final Itemset i : frequentItemsets)
+				if((double)i.getSupport()/(double)table.getSize()>=s && itemset.equals(new TIntHashSet(i.getElements())))
+				{
+					frontier.remove(itemset);
+					break;
+				}
+		
+		TIntHashSet[] array = frontier.toArray(new TIntHashSet[0]);
+		
+		for(int i=0; i<array.length; i++)
+		{
+			boolean isMinimal = true;
+
+			for(int j=0; j<array.length; j++)
+				if(i != j)
+				{
+					if(ca(array[i],array[j]))
+					{
+						isMinimal = false;
+						break;
 					}
 				}
+			
+			if(!isMinimal)
+				frontier.remove(array[i]);
+		}
+		
+		return frontier;
+	} 
+	
+	private static Set<TIntHashSet> computeFrontierSvAttribute(final List<Itemset> frequentItemsets, final Table table, final double s, final Column<Integer> svAtt)
+	{
+		final Set<TIntHashSet> frontier = new HashSet<TIntHashSet>();
+		
+		for(final Itemset itemset : frequentItemsets)
+		{
+			if((double)itemset.getSupport()/(double)table.getSize() >= s)
+			{
+				final TIntHashSet setOfItems = itemset.getElements();	
 				
-				for(final Column<TIntHashSet> column : mv_attributes)
+				final TIntHashSet domainSingleValueAttribute = new TIntHashSet(table.domainSingleValueAttribute(svAtt.getName()));
+				
+				if(!domainSingleValueAttribute.removeAll(setOfItems))
 				{
-					final TIntHashSet domainMultiValueAttribute = new TIntHashSet(table.domainMultiValueAttribute(column.getName()));
-					domainMultiValueAttribute.removeAll(setOfItems);
-					
-					final TIntIterator iterator = domainMultiValueAttribute.iterator();
-					
+					final TIntIterator iterator = domainSingleValueAttribute.iterator();
+
 					while(iterator.hasNext())
 					{
 						final TIntHashSet newItemset = new TIntHashSet(setOfItems);
@@ -230,51 +306,35 @@ public class MainClass
 		}
 
 		TIntHashSet singleton;
+		final TIntIterator iterator = table.domainSingleValueAttribute(svAtt.getName()).iterator();
 		
-		for(final Column<Integer> column : sv_attributes)
+		while(iterator.hasNext())
 		{
-			final TIntIterator iterator = table.domainSingleValueAttribute(column.getName()).iterator();
-			
-			while(iterator.hasNext())
-			{
-				singleton = new TIntHashSet();
-				singleton.add(iterator.next());
-				frontier.add(singleton);
-			}
-		}
-		
-		for(final Column<TIntHashSet> column : mv_attributes)
-		{
-			final TIntIterator iterator = table.domainMultiValueAttribute(column.getName()).iterator();
-			
-			while(iterator.hasNext())
-			{
-				singleton = new TIntHashSet();
-				singleton.add(iterator.next());
-				frontier.add(singleton);
-			}		
+			singleton = new TIntHashSet();
+			singleton.add(iterator.next());
+			frontier.add(singleton);
 		}
 		
 		Set<TIntHashSet> copyOfFrontier = new HashSet<TIntHashSet>(frontier);
 		
 		for(final TIntHashSet itemset : copyOfFrontier)
 			for(final Itemset i : frequentItemsets)
-				if((double)i.getSupport()/(double)table.getSize()>=s && itemset.equals(new TIntHashSet(i.getSetOfItems())))
+				if((double)i.getSupport()/(double)table.getSize()>=s && itemset.equals(new TIntHashSet(i.getElements())))
 				{
 					frontier.remove(itemset);
 					break;
 				}
 		
-		copyOfFrontier = new HashSet<TIntHashSet>(frontier);
+		TIntHashSet[] array = frontier.toArray(new TIntHashSet[0]);
 		
-		for(final TIntHashSet i : copyOfFrontier)
+		for(int i=0; i<array.length; i++)
 		{
 			boolean isMinimal = true;
 
-			for(final TIntHashSet j : copyOfFrontier)
-				if(!i.equals(j))
+			for(int j=0; j<array.length; j++)
+				if(i != j)
 				{
-					if(i.containsAll(j))
+					if(ca(array[i],array[j]))
 					{
 						isMinimal = false;
 						break;
@@ -282,12 +342,22 @@ public class MainClass
 				}
 			
 			if(!isMinimal)
-				frontier.remove(i);
+				frontier.remove(array[i]);
 		}
 		
-		return frontier;
+		return frontier;  
 	}
-
+	
+	
+	private static boolean ca(TIntHashSet s1, TIntHashSet s2)
+	{
+		if(s1.size() < s2.size())
+			return false;
+		else
+			return s1.containsAll(s2);
+	}
+	
+	
 	private static List<Constraint> computeIC(final Set<TIntHashSet> frontier, final Table table, final double threshold, final double scale_factor)
 	{
 		final List<Constraint> infrequencyConstraints = new ArrayList<Constraint>();
@@ -295,7 +365,7 @@ public class MainClass
 	
 		for(final TIntHashSet minimalInfrequentItemset : frontier)
 		{		
-			final Map<String,Integer> singleValueAttributeConstraint = new HashMap<String,Integer>();
+			final TObjectIntHashMap<String> singleValueAttributeConstraint = new TObjectIntHashMap<String>();
 			final Map<String,TIntHashSet> multiValueAttributeConstraint = new HashMap<String,TIntHashSet>();
 			
 			final List<Column<Integer>> sv_attributes = table.get_SV_attributes();
@@ -346,42 +416,148 @@ public class MainClass
 		return infrequencyConstraints;
 	}
 
+
+	private static void configure()
+	{
+		try
+		{
+			final BufferedReader reader = new BufferedReader(new FileReader("CONF"));
+			
+			String line;			
+
+			while((line = reader.readLine()) != null)
+			{				
+				if(line.startsWith("#"))
+				{
+					StringTokenizer st = new StringTokenizer(line, ": ");
+
+					final String parameter = st.nextToken();
+					
+					if(parameter.equals("#INPUT_TABLE_NAME"))
+						inputTableName = st.nextToken();
+					else
+						if(parameter.equals("#INPUT_TABLE_ATTRIBUTES"))
+						{
+							final List<String> att = new ArrayList<String>();
+							
+							while(st.hasMoreTokens())
+							{
+								att.add(st.nextToken());
+								att.add(st.nextToken());
+							}
+							
+							attributes = att.toArray(new String[0]);
+						}
+						else
+							if(parameter.equals("#EMPTY_SET"))
+							{								
+								while(st.hasMoreTokens())
+									emptySet.add(st.nextToken());
+							}
+							else
+								if(parameter.equals("#MINIMUM_SUPPORT"))
+									minimumSupport = Double.parseDouble(st.nextToken());
+								else
+									if(parameter.equals("#OUTPUT_TABLE_NAME"))
+										outputTableName = st.nextToken();
+									else
+										if(parameter.equals("#PROBLEM"))
+											problem = st.nextToken();
+										else
+											if(parameter.equals("#SCALE_FACTOR"))
+												scaleFactor = Double.parseDouble(st.nextToken());
+											else
+												if(parameter.equals("#TIME_CUT"))
+													timeCut = Integer.parseInt(st.nextToken()) * 60 * 1000;
+												else
+													if(parameter.equals("#FREQUENT_ITEMSETS"))
+													{
+														if(st.nextToken().equals("yes"))
+															showFrequentItemsets = true;
+													}
+													else
+														if(parameter.equals("#FREQUENCY_CONSTRAINTS"))
+														{
+															if(st.nextToken().equals("yes"))
+																showFrequencyConstraints = true;
+														}
+				}
+			}
+			
+			reader.close();
+		}
+		catch (FileNotFoundException e)
+		{
+			e.printStackTrace();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+
 	public static void main(String[] args) throws Exception
 	{	
-		final long solverStart = System.currentTimeMillis();
+		configure();
+
+		System.out.println("input table: "+inputTableName+"\n"+
+						   "output table: "+outputTableName+"\n"+
+						   "min support: "+minimumSupport+"\n"+
+						   "scale factor: "+scaleFactor+"\n"+
+						   "time cut: "+timeCut+"\n"+
+						   "problem: "+problem);
+
 		
-		final Table table = buildTable(args);
-		final String tableName = args[0];
-		final double threshold = Double.parseDouble(args[1]);
-		final double scale_factor = Double.parseDouble(args[2]);
+		final Table table = buildTable();
 		
-		System.out.println("\nrunning APRIORI on " + tableName + " ...");
-		final List<Itemset> frequentItemsets = computeFrequentItemsets(threshold, tableName);
-			
-		final List<Constraint> frequencyConstraints = computeFC(frequentItemsets, table, threshold, scale_factor);
+		System.out.print("\nrunning APRIORI algorithm on '" + inputTableName + "' with suppport " + minimumSupport + "...");
+		final List<Itemset> frequentItemsets = computeFrequentItemsets(minimumSupport, inputTableName);
+		System.out.println(" done.");
+		
+		final List<Constraint> frequencyConstraints = computeFC(frequentItemsets, table, minimumSupport, scaleFactor);
+		System.out.println("#frequency constraints: " + frequencyConstraints.size());
 
 		if(frequencyConstraints.size() > 0)
 		{
-			final Set<TIntHashSet> frontier = computeFrontier(frequentItemsets, table, threshold);
-			List<Constraint> infrequencyConstraints = computeIC(frontier, table, threshold, scale_factor);
+			List<Constraint> infrequencyConstraints = new ArrayList<Constraint>();
 			
-			System.out.println("frequency constraints: " + frequencyConstraints.size() + "\ninfrequency constraints: " + infrequencyConstraints.size());
-
-//				for(Constraint c : frequencyConstraints)
-//					System.out.println(c.toString());
-//				
-//				System.out.println();
-//				for(Constraint c : infrequencyConstraints)
-//					System.out.println(c.toString());
+			if(problem.equals("IFM_I"))
+			{
+				final Set<TIntHashSet> frontier = computeFrontier(frequentItemsets, table, minimumSupport);
+				infrequencyConstraints = computeIC(frontier, table, minimumSupport, scaleFactor);
+				System.out.println("#infrequency constraints: " + infrequencyConstraints.size());
+			}
+			else
+				infrequencyConstraints = new ArrayList<Constraint>();
 			
-			System.out.println("computing table ...");
+			if(showFrequencyConstraints)
+			{
+				for(Constraint c : frequencyConstraints)
+				System.out.println(c.toString());
 			
-			final Solver solver = new Solver(table, frequencyConstraints, infrequencyConstraints, scale_factor);
-			solver.runProgram();
-			final long solverEnd = System.currentTimeMillis();
+				System.out.println();
+				for(Constraint c : infrequencyConstraints)
+					System.out.println(c.toString());
+			}
 			
-			solver.buildNewTable(threshold, args);
-			System.out.println("done in " + (solverEnd-solverStart) + " ms");
+			System.out.println("running ...");
+			long start = System.currentTimeMillis();
+			final Solver solver = new Solver(table, frequencyConstraints, infrequencyConstraints, scaleFactor, start, emptySet, outputTableName);
+			solver.runProgram(timeCut);
+			final long end = System.currentTimeMillis();
+			
+			System.out.println("done in " + (end-start) + " ms");
+			
+			final TObjectDoubleHashMap<TIntArrayList> outputTable = solver.getOutputTable();
+			
+			final File output = new File(outputTableName + "_" + minimumSupport);
+			final FileOutputStream os2 = new FileOutputStream(output);
+			final PrintStream ps2 = new PrintStream(os2);
+			
+			ps2.print(outputTable.toString());
+			ps2.close();
+			os2.close();
 		}
 	}
 

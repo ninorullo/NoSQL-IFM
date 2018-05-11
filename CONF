@@ -1,0 +1,66 @@
+/**
+ * @author Antonino Rullo, Domenico Saccà, University of Calabria, 2018.
+ * @author Edoardo Serra, Boise State University, 2018
+ * @copyright GNU General Public License v3
+ * No reproduction in whole or part without maintaining this copyright notice
+ * and imposing this condition on any subsequent users.
+ */
+
+/* This file lists the parameters to be set in order to tune the IFM problem on your specific instance.
+/* Parameters are identified by the character '#'.
+
+ -- file name of the input table
+
+#INPUT_TABLE_NAME: table
+
+
+ -- the list of the attributes names, each followed by 'sv' (if single value) or 'mv' (if multi value), in the same order they appear in the input table, and separated by white spaces.
+    example: given a table storing individuals who are characterized by the single value attributes NAME, AGE and GENDER, 
+    and by the multi value attributes GROUPS and EVENTS (an individual may belong to various groups and may attend a number of events)
+    the text to insert is: NAME sv AGE sv GENDER sv GROUPS mv EVENTS mv
+
+#INPUT_TABLE_ATTRIBUTES: STATE sv STARS sv CATEGORIES mv REVIEWERS mv
+
+
+ -- the list of the multi value attributes that allow empty sets as values, separated by a white space.
+    example: given a table storing individuals who are characterized by the single value attributes NAME, AGE and GENDER, 
+    and by the multi value attributes GROUPS and EVENTS (an individual may belong to various groups and may attend a number of events),
+    if individuals may not belong to any group, or may not attend any event, the text to insert is: GROUPS EVENTS
+    on the other hand, if individuals must belong to at least one group, and must attend at least one event, the field must remain empty.
+
+#EMPTY_SET:
+
+
+ -- the threshold used to compute the frequent itemsets of the input table, expressed as a double value in the range (0,1]
+
+#MINIMUM_SUPPORT: 0.02
+
+
+ -- name of the output table
+
+#OUTPUT_TABLE_NAME: outputTable
+
+
+ -- the problem you want to solve: the classical Inverse Frequent Itemset Mining (value IFM), or the Inverse Frequent Itemset Mining with the addition of infrequency constraints (value IFM_I)
+
+#PROBLEM: IFM_I
+
+
+/* Optional Parameters.
+
+ -- the size of the output table expressed as a percentage (a double value in the range (0,infinite)) of the size of the input table. 
+    by default the size of the output table is equal to that of the input table.
+
+#SCALE_FACTOR: 1
+
+
+ -- as big instances may require many hours to be solved, you can get an approximate solution by stopping the optimization problem execution before it get to the end by specifyng the maximum execution time in minutes.
+    by default there is no time cut (value 0).
+
+#TIME_CUT: 0
+
+
+ -- the following parameters allow to choose what to print on the output console. Values: yes/no
+
+#FREQUENT_ITEMSETS: no
+#FREQUENCY_CONSTRAINTS: no

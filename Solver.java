@@ -223,7 +223,12 @@ public class Solver
 				{
 					if(!emptySet.contains(columnName))
 					{
-						IloRange addGe = cplexILP.addGe(constraint_on_attribute, 1);//sr1 + sr2 + sr3 >= 1
+						IloRange addGe = cplexILP.addGe(constraint_on_attribute, 1);//r1 + r2 + r3 >= 1
+						addGe.setName(columnName);
+					}
+					else
+					{
+						IloRange addGe = cplexILP.addGe(constraint_on_attribute, 0);//r1 + r2 + r3 >= 0
 						addGe.setName(columnName);
 					}
 				}
@@ -315,14 +320,14 @@ public class Solver
 	/**
 	 * example: 
 	 * 
-	 * attribute     STARS (SV)  | STATES (SV) |   CATS (MV)  |    REVS (MV)
-	 * domain          {1,2,3}   |   {4,5,6}   |    {7,8,9}   |   {10,11,12}
+	 * attribute     STARS (SV)  | STATES (SV) |   CATEGORIES (MV)  |    REVIEWERS (MV)
+	 * domain          {1,2,3}   |   {4,5,6}   |       {7,8,9}      |      {10,11,12}
 	 *  
-	 * frequency constraint fc1: [STARS=1, STATES=4, CATS>={7,8}, REVS>={10,11}]
+	 * frequency constraint fc1: [STARS=1, STATES=4, CATEGORIES>={7,8}, REVIEWERS>={10,11}]
 	 * 
 	 * variables: c1-->fc1
 	 * 
-	 * 			  sr1-->1
+	 * 	      sr1-->1
 	 *            sr2-->2
 	 *            sr3-->3
 	 *            
@@ -338,7 +343,7 @@ public class Solver
 	 *            r2-->11
 	 *            r3-->12
 	 *            
-	 * constraint on constraints:	fc1 >= 0.00001
+	 * constraint on constraints:	fc1 >= 0.01
 	 * constraint on STARS:  	sr1 + sr2 + sr3 = 1
 	 * constraint on STATES: 	st1 + st2 + st3 = 1
 	 * constaint on CATS: 		ct1 + ct2 + ct3 >= 1
@@ -359,7 +364,7 @@ public class Solver
 		{
 			cplexILP = new IloCplex();
 			cplexILP.setParam(IloCplex.IntParam.SolnPoolIntensity, 4);
-//			cplexILP.setParam(IloCplex.IntParam.SolnPoolCapacity, 20);
+			cplexILP.setParam(IloCplex.IntParam.SolnPoolCapacity, 30);
 			cplexILP.setOut(null);
 			cplexILP.setWarning(null);	
 			

@@ -37,7 +37,7 @@ public class Solver
 	private final Map<IloNumVar,TIntArrayList> transactions = new HashMap<IloNumVar,TIntArrayList>();//key: x; value: itemsets => index=0 --> SV attribute, index>0 --> MV attribute
 	private TIntObjectHashMap<TIntArrayList> lastTransactions;
 	private int xIndex = 0;
-	private IloLinearNumExpr constraintOnConstraints;
+	private IloLinearNumExpr reducedCosts;
 	private final double scale_factor;
 	private final long start;
 	private TObjectDoubleHashMap<TIntArrayList> outputTable = new TObjectDoubleHashMap<TIntArrayList>();
@@ -243,7 +243,7 @@ public class Solver
 	 * maps each frequency and infrequency constraint to a CPLEX variable and adds ILP constraints
 	 * @param constraints
 	 */
-	private void mappingConstraints(final List<Constraint> constraints)
+	private void mappingConstraints(final List<Constraint> constraints, final IloLinearNumExpr objective)
 	{
 		try
 		{
@@ -262,7 +262,8 @@ public class Solver
 					icConstraints.put("i_" + c.getName(), c);
 				}
 				
-				constraintOnConstraints.addTerm(1, constraintVar);
+				reducedCosts.addTerm(1, constraintVar);
+				objective.addTerm(1, constraintVar);
 				
 				int counter = 0;
 				final IloLinearIntExpr linearIntExpr = cplexILP.linearIntExpr();
@@ -367,16 +368,17 @@ public class Solver
 			cplexILP.setOut(null);
 			cplexILP.setWarning(null);	
 			
-			constraintOnConstraints = cplexILP.linearNumExpr();
+			reducedCosts = cplexILP.linearNumExpr();
+			IloLinearNumExpr objective = cplexILP.linearNumExpr(); 
 			
 			mappingValues(table.get_SV_attributes(), true);
 			mappingValues(table.get_MV_attributes(), false);
 			
-			mappingConstraints(frequencyConstraints);
-			mappingConstraints(infrequencyConstraints);
+			mappingConstraints(frequencyConstraints, objetive);
+			mappingConstraints(infrequencyConstraints, objetive);
 			
-			objectiveILP = cplexILP.addMaximize(constraintOnConstraints);
-			coc = cplexILP.addGe(constraintOnConstraints, 0.01);
+			objectiveILP = cplexILP.addMaximize(reducedCosts);
+			coc = cplexILP.addGe(reducedCosts, 0.01);
 		}
 		catch (IloException e)
 		{
@@ -454,7 +456,7 @@ public class Solver
 				
 				for(int t=0; t<solnPoolNsolns; t++)
 				{
-					final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
+					final IloLinearNumExprIterator iterator = reducedCosts.linearIterator();
 					
 					IloNumVar var;
 					String varName;
@@ -545,7 +547,7 @@ public class Solver
 			{				
 				for(int t=0; t<cplexILP.getSolnPoolNsolns(); t++)
 				{
-					final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
+					final IloLinearNumExprIterator iterator = reducedCosts.linearIterator();
 				
 					IloNumVar var = iterator.nextNumVar();
 					String varName = var.getName();
@@ -638,7 +640,7 @@ public class Solver
 		{
 			cplexILP.remove(coc);
 			
-			final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
+			final IloLinearNumExprIterator iterator = reducedCosts.linearIterator();
 			
 			if(c6!=null && c7!=null && c8!=null)
 			{
@@ -650,8 +652,7 @@ public class Solver
 					if(name.startsWith("f"))
 					{
 						iterator.setValue(cplex.getDual(constraints6.get(name)) + cplex.getDual(constraints7.get(name)));
-						cplexILP.setLinearCoef(objectiveILP, cplex.getDual(constraints6.get(name)), nextNumVar);
-						cplexILP.setLinearCoef(objectiveILP, cplex.getDual(constraints7.get(name)), nextNumVar);
+						cplexILP.setLinearCoef(objectiveILP, cplex.getDual(constraints6.get(name)) + cplex.getDual(constraints7.get(name)), nextNumVar);
 					}
 					else
 						if(name.startsWith("i"))
@@ -663,7 +664,7 @@ public class Solver
 				
 				final double sum = cplex.getDual(sizeConstraints.get("C10")) + cplex.getDual(sizeConstraints.get("C11"));
 				final double d = 0.0001-sum;
-				coc = cplexILP.addGe(constraintOnConstraints, d);
+				coc = cplexILP.addGe(reducedCosts, d);
 			}
 			else
 			{				
@@ -684,7 +685,7 @@ public class Solver
 					}
 				}
 				
-				coc = cplexILP.addGe(constraintOnConstraints, 0.01);
+				coc = cplexILP.addGe(reducedCosts, 0.01);
 			}
 			
 			cplexILP.populate();

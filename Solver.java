@@ -651,8 +651,10 @@ public class Solver
 										
 					if(name.startsWith("f"))
 					{
-						iterator.setValue(cplex.getDual(constraints6.get(name)) + cplex.getDual(constraints7.get(name)));
-						cplexILP.setLinearCoef(objectiveILP, cplex.getDual(constraints6.get(name)) + cplex.getDual(constraints7.get(name)), nextNumVar);
+						double dual1 = cplex.getDual(constraints6.get(name));
+						double dual2 = cplex.getDual(constraints7.get(name));
+						iterator.setValue(dual1 + dual2);
+						cplexILP.setLinearCoef(objectiveILP, dual1 + dual2, nextNumVar);
 					}
 					else
 						if(name.startsWith("i"))

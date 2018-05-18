@@ -35,7 +35,6 @@ public class Solver
 	private final Map<String,IloRange> sizeConstraints = new HashMap<String,IloRange>();
 	private final Map<String,TIntObjectHashMap<IloIntVar>> variables = new HashMap<String,TIntObjectHashMap<IloIntVar>>();//key: column name, value: mapping value-->CPLEX variable
 	private final Map<IloNumVar,TIntArrayList> transactions = new HashMap<IloNumVar,TIntArrayList>();//key: x; value: itemsets => index=0 --> SV attribute, index>0 --> MV attribute
-	private Set<List<IloIntVar>> lastTransactionsVars = new HashSet<List<IloIntVar>>();
 	private TIntObjectHashMap<TIntArrayList> lastTransactions;
 	private int xIndex = 0;
 	private IloLinearNumExpr constraintOnConstraints;
@@ -449,9 +448,8 @@ public class Solver
 			 
 			while(nonSatisfiedConstraints.size() > 0)
 			{
-				runILP(null, null, null, lastTransactionsVars, nonSatisfiedConstraints);
+				runILP(null, null, null, nonSatisfiedConstraints);
 				
-				lastTransactionsVars = new HashSet<List<IloIntVar>>();
 				final int solnPoolNsolns = cplexILP.getSolnPoolNsolns();
 				
 				for(int t=0; t<solnPoolNsolns; t++)
@@ -495,25 +493,7 @@ public class Solver
 						xIndex++;
 					}
 					
-					final TIntArrayList one_Transaction = lastTransactions.get(t);
-					transactions.put(x, one_Transaction);
-					
-					final List<IloIntVar> transVars = new ArrayList<IloIntVar>();
-					TIntIterator iterator2 = one_Transaction.iterator();
-					
-					while(iterator2.hasNext())
-					{
-						int i = iterator2.next();
-						
-						for(final String columnName : variables.keySet())
-							if(variables.get(columnName).containsKey(i))
-							{
-								transVars.add(variables.get(columnName).get(i));
-								break;
-							}
-					}
-					
-					lastTransactionsVars.add(transVars);
+					transactions.put(x, lastTransactions.get(t));
 				}
 			}
 			
@@ -561,10 +541,8 @@ public class Solver
 			System.out.println("obj: "+cplex.getObjValue());
 			boolean timeIsOver = false;
 			
-			while(runILP(constraints6, constraints7, constraints8, lastTransactionsVars, null)>0 && !timeIsOver)
-			{
-				lastTransactionsVars = new HashSet<List<IloIntVar>>();
-				
+			while(runILP(constraints6, constraints7, constraints8, null)>0 && !timeIsOver)
+			{				
 				for(int t=0; t<cplexILP.getSolnPoolNsolns(); t++)
 				{
 					final IloLinearNumExprIterator iterator = constraintOnConstraints.linearIterator();
@@ -611,26 +589,7 @@ public class Solver
 						x.setName("x" + xIndex);
 						xIndex++;
 						
-						final TIntArrayList one_Transaction = lastTransactions.get(t);
-						transactions.put(x, one_Transaction);
-						
-						final List<IloIntVar> transVars = new ArrayList<IloIntVar>();
-						
-						TIntIterator iterator2 = one_Transaction.iterator();
-						
-						while(iterator2.hasNext())
-						{
-							int i = iterator2.next();
-							
-							for(final String columnName : variables.keySet())
-								if(variables.get(columnName).containsKey(i))
-								{
-									transVars.add(variables.get(columnName).get(i));
-									break;
-								}
-						}
-						
-						lastTransactionsVars.add(transVars);
+						transactions.put(x, lastTransactions.get(t));
 					}
 				}
 				
@@ -672,7 +631,6 @@ public class Solver
 				final Map<String,IloRange> c6, 
 				final Map<String,IloRange> c7, 
 				final Map<String,IloRange> c8, 
-				final Set<List<IloIntVar>> transactionsVars,
 				final Set<String> nonSatisfiedConstraints
 			     )
 	{

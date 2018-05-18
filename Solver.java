@@ -42,7 +42,7 @@ public class Solver
 	private final long start;
 	private TObjectDoubleHashMap<TIntArrayList> outputTable = new TObjectDoubleHashMap<TIntArrayList>();
 	private IloObjective objectiveILP;
-	private IloRange coc;
+	private IloRange rc;
 	private final Set<String> emptySet;
 	private final String outputTableName;
 	
@@ -378,7 +378,7 @@ public class Solver
 			mappingConstraints(infrequencyConstraints, objetive);
 			
 			objectiveILP = cplexILP.addMaximize(reducedCosts);
-			coc = cplexILP.addGe(reducedCosts, 0.01);
+			rc = cplexILP.addGe(reducedCosts, 0.01);
 		}
 		catch (IloException e)
 		{
@@ -638,7 +638,7 @@ public class Solver
 	{
 		try
 		{
-			cplexILP.remove(coc);
+			cplexILP.remove(rc);
 			
 			final IloLinearNumExprIterator iterator = reducedCosts.linearIterator();
 			
@@ -666,7 +666,7 @@ public class Solver
 				
 				final double sum = cplex.getDual(sizeConstraints.get("C10")) + cplex.getDual(sizeConstraints.get("C11"));
 				final double d = 0.0001-sum;
-				coc = cplexILP.addGe(reducedCosts, d);
+				rc = cplexILP.addGe(reducedCosts, d);
 			}
 			else
 			{				
@@ -687,7 +687,7 @@ public class Solver
 					}
 				}
 				
-				coc = cplexILP.addGe(reducedCosts, 0.01);
+				rc = cplexILP.addGe(reducedCosts, 0.01);
 			}
 			
 			cplexILP.populate();

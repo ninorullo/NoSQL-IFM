@@ -463,8 +463,7 @@ public class Solver
 					
 					final IloNumVar x = cplex.numVar(0, Double.POSITIVE_INFINITY);
 					x.setName("x" + xIndex);
-				
-					boolean b = false;
+					xIndex++;
 					
 					while(iterator.hasNext())
 					{
@@ -473,7 +472,6 @@ public class Solver
 						
 						if(cplexILP.getValue(var,t) > 0)
 						{
-							b = true;
 							nonSatisfiedConstraints.remove(varName);
 							constraintsVariables.add(varName);
 							
@@ -487,13 +485,9 @@ public class Solver
 									icExpressions.get(varName).addTerm(1, x);
 						}
 					}
-					
-					if(b)
-					{
-						numExpr10.addTerm(1, x);
-						numExpr11.addTerm(1, x);
-						xIndex++;
-					}
+
+					numExpr10.addTerm(1, x);
+					numExpr11.addTerm(1, x);
 					
 					transactions.put(x, lastTransactions.get(t));
 				}
@@ -552,7 +546,7 @@ public class Solver
 					IloNumVar var = iterator.nextNumVar();
 					String varName = var.getName();
 					double value = cplexILP.getValue(var,t);
-					IloColumn column = null;
+					IloColumn column = cplex.column(sizeConstraints.get("C10"), 1).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11;
 					
 					while(value==0 && iterator.hasNext())
 					{
@@ -563,12 +557,6 @@ public class Solver
 					
 					if(value > 0)
 					{
-						if(varName.startsWith("f"))//frequency constraints
-							column = cplex.column(constraints6.get(varName), 1).and(cplex.column(constraints7.get(varName), 1));
-						else
-							if(varName.startsWith("i"))//infrequency constraints
-								column = cplex.column(constraints8.get(varName), 1);			
-						
 						while(iterator.hasNext())
 						{
 							var = iterator.nextNumVar();
@@ -584,8 +572,6 @@ public class Solver
 										column = column.and(cplex.column(constraints8.get(varName), 1));
 							}
 						}
-						
-						column = column.and(cplex.column(sizeConstraints.get("C10"), 1)).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11	
 						
 						final IloNumVar x = cplex.numVar(column, 0, Double.POSITIVE_INFINITY);
 						x.setName("x" + xIndex);

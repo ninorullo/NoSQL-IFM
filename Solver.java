@@ -538,45 +538,62 @@ public class Solver
 			boolean timeIsOver = false;
 			
 			while(runILP(constraints6, constraints7, constraints8, null)>0 && !timeIsOver)
-			{				
+			{
+				final double d = cplex.getDual(sizeConstraints.get("C10")) + cplex.getDual(sizeConstraints.get("C11"));
+				
 				for(int t=0; t<cplexILP.getSolnPoolNsolns(); t++)
 				{
-					final IloLinearNumExprIterator iterator = reducedCosts.linearIterator();
-				
-					IloNumVar var = iterator.nextNumVar();
-					String varName = var.getName();
-					double value = cplexILP.getValue(var,t);
-					IloColumn column = cplex.column(sizeConstraints.get("C10"), 1).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11;
-					
-					while(value==0 && iterator.hasNext())
+					if(cplexILP.getValue(reducedCosts, t) + d > 0)
 					{
-						var = iterator.nextNumVar();
-						value = cplexILP.getValue(var,t);
-						varName = var.getName();
-					}
-					
-					if(value > 0)
-					{
+						final IloLinearNumExprIterator iterator = reducedCosts.linearIterator();
+
+						IloNumVar var = iterator.nextNumVar();
+						String varName = var.getName();
+						double value = cplexILP.getValue(var,t);
+						IloColumn column  = null;
+						
+						while(value==0 && iterator.hasNext())
+						{
+							var = iterator.nextNumVar();
+							value = cplexILP.getValue(var,t);
+							varName = var.getName();
+						}
+
+						if(value > 0)
+						{
+							if(varName.startsWith("f"))//frequency constraints
+								column = cplex.column(constraints6.get(varName), 1).and(cplex.column(constraints7.get(varName), 1));
+							else
+								if(varName.startsWith("i"))//infrequency constraints
+									column = cplex.column(constraints8.get(varName), 1);
+						}
+						
 						while(iterator.hasNext())
 						{
 							var = iterator.nextNumVar();
-							varName = var.getName();
 							value = cplexILP.getValue(var,t);
-							
+
 							if(value > 0)
-							{							
+							{	
+								varName = var.getName();
+								
 								if(varName.startsWith("f"))//frequency constraints
-										column = column.and(cplex.column(constraints6.get(varName), 1)).and(cplex.column(constraints7.get(varName), 1));
+									column = column.and(cplex.column(constraints6.get(varName), 1)).and(cplex.column(constraints7.get(varName), 1));
 								else
 									if(varName.startsWith("i"))//infrequency constraints	
 										column = column.and(cplex.column(constraints8.get(varName), 1));
 							}
 						}
 						
+						if(column != null)
+							column = column.and(cplex.column(sizeConstraints.get("C10"), 1)).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11	
+						else
+							column = cplex.column(sizeConstraints.get("C10"), 1).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11;
+
 						final IloNumVar x = cplex.numVar(column, 0, Double.POSITIVE_INFINITY);
 						x.setName("x" + xIndex);
 						xIndex++;
-						
+
 						transactions.put(x, lastTransactions.get(t));
 					}
 				}

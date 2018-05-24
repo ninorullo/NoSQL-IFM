@@ -547,31 +547,14 @@ public class Solver
 					{
 						final IloLinearNumExprIterator iterator = reducedCosts.linearIterator();
 
-						IloNumVar var = iterator.nextNumVar();
-						String varName = var.getName();
-						double value = cplexILP.getValue(var,t);
-						IloColumn column  = null;
-						
-						while(value==0 && iterator.hasNext())
-						{
-							var = iterator.nextNumVar();
-							value = cplexILP.getValue(var,t);
-							varName = var.getName();
-						}
-
-						if(value > 0)
-						{
-							if(varName.startsWith("f"))//frequency constraints
-								column = cplex.column(constraints6.get(varName), 1).and(cplex.column(constraints7.get(varName), 1));
-							else
-								if(varName.startsWith("i"))//infrequency constraints
-									column = cplex.column(constraints8.get(varName), 1);
-						}
+						IloNumVar var = null;
+						String varName = null;
+						IloColumn column = cplex.column(sizeConstraints.get("C10"), 1).and(cplex.column(sizeConstraints.get("C11"), 1));
 						
 						while(iterator.hasNext())
 						{
 							var = iterator.nextNumVar();
-							value = cplexILP.getValue(var,t);
+							double value = cplexILP.getValue(var,t);
 
 							if(value > 0)
 							{	
@@ -585,11 +568,6 @@ public class Solver
 							}
 						}
 						
-						if(column != null)
-							column = column.and(cplex.column(sizeConstraints.get("C10"), 1)).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11	
-						else
-							column = cplex.column(sizeConstraints.get("C10"), 1).and(cplex.column(sizeConstraints.get("C11"), 1));//C10 and C11;
-
 						final IloNumVar x = cplex.numVar(column, 0, Double.POSITIVE_INFINITY);
 						x.setName("x" + xIndex);
 						xIndex++;

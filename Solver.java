@@ -243,7 +243,7 @@ public class Solver
 	 * maps each frequency and infrequency constraint to a CPLEX variable and adds ILP constraints
 	 * @param constraints
 	 */
-	private void mappingConstraints(final List<Constraint> constraints, final IloLinearNumExpr objective)
+	private void mappingConstraints(final List<Constraint> constraints, final IloLinearNumExpr objective, final IloLinearIntExpr sumConstraints)
 	{
 		try
 		{
@@ -264,6 +264,7 @@ public class Solver
 				
 				reducedCosts.addTerm(1, constraintVar);
 				objective.addTerm(1, constraintVar);
+				sumConstraints.addTerm(1, constraintVar);
 				
 				int counter = 0;
 				final IloLinearIntExpr linearIntExpr = cplexILP.linearIntExpr();
@@ -364,21 +365,23 @@ public class Solver
 		{
 			cplexILP = new IloCplex();
 			cplexILP.setParam(IloCplex.IntParam.SolnPoolIntensity, 4);
-			cplexILP.setParam(IloCplex.IntParam.SolnPoolCapacity, 30);
+			cplexILP.setParam(IloCplex.IntParam.SolnPoolCapacity, 20);
 			cplexILP.setOut(null);
 			cplexILP.setWarning(null);	
 			
 			reducedCosts = cplexILP.linearNumExpr();
-			IloLinearNumExpr objective = cplexILP.linearNumExpr(); 
+			IloLinearNumExpr objective = cplexILP.linearNumExpr();
+			IloLinearIntExpr sumConstraints = cplexILP.linearIntExpr();
 			
 			mappingValues(table.get_SV_attributes(), true);
 			mappingValues(table.get_MV_attributes(), false);
 			
-			mappingConstraints(frequencyConstraints, objetive);
-			mappingConstraints(infrequencyConstraints, objetive);
+			mappingConstraints(frequencyConstraints, objetive, sumConstraints);
+			mappingConstraints(infrequencyConstraints, objetive, sumConstraints);
 			
-			objectiveILP = cplexILP.addMaximize(reducedCosts);
+			objectiveILP = cplexILP.addMaximize(objective);
 			rc = cplexILP.addGe(reducedCosts, 0.01);
+			cplexILP.addGe(sumConstraints, 1);
 		}
 		catch (IloException e)
 		{

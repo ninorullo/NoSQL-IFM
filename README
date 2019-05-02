@@ -1,7 +1,7 @@
 OUTLINE:
 
 This code implements an algorithm which performs Inverse Frequent Itemset Mining (IFM) on SQL and no-SQL tables (i.e. with multivalue attributes).
-Given a (no)SQL table as input, the algorithm outputs synthetic (no)SQL transactional table which complies with the frequency (and possibly infrequency) constraints build according with the frequent (infrequent) itemsets of the input table. 
+Given a (no)SQL table as input, the algorithm outputs synthetic (no)SQL transactional table which complies with the frequency (and possibly infrequency) constraints built according with the frequent (infrequent) itemsets of the input table. 
 The use of infrequency constraints is optional, and identifies the IFM_I problem, i.e. the IFM problem with the addition of infrequency constraints.
 The use of infrequency constraints avoid to produce itemsets that are frequent in the output table but not in the input table.
 

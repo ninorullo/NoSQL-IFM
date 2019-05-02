@@ -41,7 +41,7 @@
 #OUTPUT_TABLE_NAME:
 
 
- -- the problem you want to solve: the classical Inverse Frequent Itemset Mining (value IFM), or the Inverse Frequent Itemset Mining with the addition of infrequency constraints (value IFM_I)
+ -- the problem you want to solve: the classical Frequent Itemset Mining (value IFM), or the Inverse Frequent Itemset Mining, i.e. with the addition of infrequency constraints (value IFM_I)
 
 #PROBLEM:
 

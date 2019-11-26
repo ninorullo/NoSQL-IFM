@@ -5,6 +5,10 @@ Given a (no)SQL table as input, the algorithm outputs synthetic (no)SQL transact
 The use of infrequency constraints is optional, and identifies the IFM_I problem, i.e. the IFM problem with the addition of infrequency constraints.
 The use of infrequency constraints avoid to produce itemsets that are frequent in the output table but not in the input table.
 
+If you use this code, please cite the following paper:
+
+Saccá, D., Serra, E., & Rullo, A. (2019). Extending inverse frequent itemsets mining to generate realistic datasets: Complexity, accuracy and emerging applications. Data Mining and Knowledge Discovery, 33(6), 1736-1774.
+
 
 LIBRARIES:
 
